@@ -452,17 +452,17 @@ window, and a breach there shows the order. Accept it, and the desktop shows it 
 
 ## Phase 4 — Tech handheld (React Native / Expo)
 
-### ☐ 4.1 · L · ~1.5h — Expo app in the monorepo, web export builds
+### ☑ 4.1 · L · ~1.5h — Expo app in the monorepo, web export builds
 
 **Budget:** files 3 · new 4 (+0 test) · trips ≈ 20
 **Read:** ⛔ "Expo + monorepo" trap; `packages/client/src/index.ts` (exports).
 
-- [ ] `npx create-expo-app@latest mobile --template blank-typescript`, then add `mobile` to the
+- [x] `npx create-expo-app@latest mobile --template blank-typescript`, then add `mobile` to the
   root workspaces.
-- [ ] `metro.config.js` per the ⛔ trap if resolution fails.
-- [ ] `App.tsx` connects via `@assetpulse/client` with `topics: ["role:tech"]` and reads `h` from
+- [x] `metro.config.js` per the ⛔ trap if resolution fails.
+- [x] `App.tsx` connects via `@assetpulse/client` with `topics: ["role:tech"]` and reads `h` from
   the URL on web (or the deep link on native).
-- [ ] Add a `build:web` script: `expo export --platform web --output-dir dist`.
+- [x] Add a `build:web` script: `expo export --platform web --output-dir dist`.
 
 **Verify:** `npm run build:web -w mobile` produces `mobile/dist/index.html`, then `npm run
 typecheck`. Manually, `npx expo start --web` shows "connected".
@@ -806,3 +806,23 @@ window plus a phone. The whole loop works.
     clicking the same button by coordinates worked. The fault was the tool, not the app.
   - The Prettier drift in `server/test/delivery.integration.test.ts` (CRLF) is still pre-existing
     and was left alone.
+- 2026-09-27 — 4.1 done, `2dea147` [1 session · ~30 trips · L on budget]. 94 tests green;
+  `build:web` exports `mobile/dist/index.html`; typecheck, lint, prettier clean.
+  - Expo SDK 57 (RN 0.86.3, React 19.2.3) as workspace `@assetpulse/mobile`. Template extras
+    removed: `LICENSE` (root has one), `AGENTS.md`/`CLAUDE.md` (they push Expo Router, which is
+    not in this plan), and `.claude/settings.json` (enabled a plugin).
+  - **No `metro.config.js`**: Metro resolved `@assetpulse/client`/`protocol` from the workspace
+    through their `exports` → `dist`. So the shared packages must be **built first** (4.3's root
+    build order already does this).
+  - React split: `web` hoists react 19.3.0 at the root, and Expo pins 19.2.3 under
+    `mobile/node_modules`. The web bundle holds only 19.2.3, so there's no duplicate React. Native
+    was not checked.
+  - Unplanned: `EXPO_PUBLIC_SERVER_URL` overrides the socket origin. `expo start --web` serves
+    the page on :8081 while the server is on :8787. Native defaults to `http://localhost:8787`.
+  - Root `typecheck` is now `tsc -b && tsc -p mobile --noEmit` (mobile uses Expo's tsconfig,
+    not composite). ESLint already ignores `mobile/**`.
+  - Verified in Chrome: `EXPO_PUBLIC_SERVER_URL=http://localhost:8787 npx expo start --web`,
+    `/?h=demo1234` → "AssetPulse · Tech / Hospital demo1234 / connected".
+  - Gotcha: stopping the `expo start` background task left Metro listening on :8081 as an orphan;
+    it had to be killed by PID.
+  - The server has no `start` script; run it with `node server/dist/index.js`.
