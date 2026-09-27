@@ -64,7 +64,7 @@ function useDotDrag(positions: PositionTracker, onMove: Props['onMove']) {
     const d = drag.current;
     if (!d) return;
     drag.current = null;
-    const to = dropTarget(d.status, d.fromZoneId, zoneAt(toSvgPoint(e.currentTarget, e)));
+    const to = dropTarget(d.fromZoneId, zoneAt(toSvgPoint(e.currentTarget, e)));
     if (to) onMove(d.assetId, to);
     else positions.release(d.assetId, performance.now());
   };

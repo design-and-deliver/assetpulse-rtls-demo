@@ -2,7 +2,8 @@ import {
   FrameType,
   INITIAL_ASSETS,
   PAR,
-  SURGE_SIZE,
+  RESTOCK_ORIGIN,
+  RESTOCK_QUANTITY,
   ZONES,
   type Asset,
   type AssetStatus,
@@ -36,23 +37,11 @@ export interface WorldOptions {
   now?: () => number;
 }
 
-/** The one status a move may advance to, and the zone kind that status lives in. */
-const NEXT_STATUS: Partial<Record<AssetStatus, AssetStatus>> = {
-  CLEAN: 'IN_USE',
-  IN_USE: 'SOILED',
-  SOILED: 'REPROCESSING',
-  REPROCESSING: 'READY',
-};
-const STATUS_ZONE_KIND: Record<AssetStatus, ZoneKind> = {
-  CLEAN: 'clean',
-  IN_USE: 'room',
-  SOILED: 'soiled',
-  REPROCESSING: 'spd',
-  READY: 'spd',
-};
+/** A pump's status follows the zone it sits in: on the shelf it is clean, in a room it is in use. */
+const STATUS_FOR_KIND: Record<ZoneKind, AssetStatus> = { clean: 'CLEAN', room: 'IN_USE' };
 
 const ZONE_KIND = new Map(ZONES.map((z) => [z.id, z.kind]));
-const ICU_ROOMS = ZONES.filter((z) => z.id.startsWith('ICU-')).map((z) => z.id);
+const PUMP_ID = /^IVP-(\d+)$/;
 const FIRST_ORDER = 10_001;
 const ORDER_PRIORITY = 2;
 
@@ -83,27 +72,22 @@ export class World {
     };
   }
 
-  /** Advances an asset one lifecycle step by moving it into a zone that fits the next status. */
+  /** Moves a pump between the shelf and the rooms; its status follows the zone it lands in. */
   moveAsset(assetId: string, toZoneId: string): WorldEvent[] {
     const asset = this.requireAsset(assetId);
     const kind = ZONE_KIND.get(toZoneId);
     if (!kind) throw new WorldError('NOT_FOUND', `zone ${toZoneId}`);
-    const next = NEXT_STATUS[asset.status];
-    if (!next || STATUS_ZONE_KIND[next] !== kind) {
-      throw new WorldError('INVALID_TRANSITION', `${assetId}: ${asset.status} → ${toZoneId}`);
+    if (asset.zoneId === toZoneId) {
+      throw new WorldError('INVALID_TRANSITION', `${assetId} is already in ${toZoneId}`);
     }
-    return [this.transition(asset, next, toZoneId)];
+    return [this.transition(asset, STATUS_FOR_KIND[kind], toZoneId)];
   }
 
-  /** Pulls up to SURGE_SIZE clean pumps into the ICU rooms, round-robin. */
-  surge(): WorldEvent[] {
-    const clean = this.assetsIn('CLEAN').slice(0, SURGE_SIZE);
-    return clean.map((asset, i) =>
-      this.transition(asset, 'IN_USE', ICU_ROOMS[i % ICU_ROOMS.length] as string),
-    );
-  }
-
-  /** Restores the initial floor and closes every active order. Order numbers keep counting. */
+  /**
+   * Restores the initial shelf and closes every active order. Pumps a restock added are dropped
+   * with no event of their own, so the caller must follow up with a full resync. Order numbers
+   * keep counting.
+   */
   reset(): WorldEvent[] {
     const events: WorldEvent[] = this.activeOrders().map((order) => this.closeOrder(order));
     for (const initial of INITIAL_ASSETS) {
@@ -112,6 +96,8 @@ export class World {
         events.push(this.transition(asset, initial.status, initial.zoneId));
       }
     }
+    const initialIds = new Set(INITIAL_ASSETS.map((a) => a.id));
+    for (const id of this.assets.keys()) if (!initialIds.has(id)) this.assets.delete(id);
     return events;
   }
 
@@ -122,31 +108,22 @@ export class World {
     }
     order.state = 'accepted';
     order.assigned_to = techId;
-    order.quantity = PAR.max - this.cleanCount();
     return [this.orderEvent(order)];
   }
 
-  /**
-   * Moves min(quantity, READY) pumps to the clean shelf and closes the order. Emits CLEARED
-   * only when the shelf is back at or above min; otherwise the next evaluatePar reopens.
-   */
+  /** Adds the order's pumps to the shelf as new assets, closes it, and clears PAR above min. */
   deliverOrder(number: string): WorldEvent[] {
     const order = this.requireActiveOrder(number);
     if (order.state !== 'accepted') throw new WorldError('NOT_ASSIGNED', `${number} is open`);
-    const ready = this.assetsIn('READY');
-    if (ready.length === 0) throw new WorldError('NOTHING_READY', `no READY pumps for ${number}`);
-
-    const events = ready
-      .slice(0, order.quantity)
-      .map((asset) => this.transition(asset, 'CLEAN', PAR.zoneId));
+    const events = Array.from({ length: order.quantity }, () => this.addPump());
     events.push(this.closeOrder(order));
-    if (this.cleanCount() >= PAR.min) events.push(this.parEvent('CLEARED'));
+    if (this.cleanCount() > PAR.min) events.push(this.parEvent('CLEARED'));
     return events;
   }
 
-  /** Opens the zone's single work order when the clean shelf is below min. */
+  /** Opens the zone's single work order when the clean shelf is at or below min. */
   evaluatePar(): WorldEvent[] {
-    if (this.cleanCount() >= PAR.min || this.activeOrders().length > 0) return [];
+    if (this.cleanCount() > PAR.min || this.activeOrders().length > 0) return [];
     const order: WorkOrder = {
       number: orderNumber(this.woCounter++),
       state: 'open',
@@ -154,7 +131,7 @@ export class World {
       assigned_to: null,
       location: PAR.zoneId,
       priority: ORDER_PRIORITY,
-      quantity: PAR.max - this.cleanCount(),
+      quantity: RESTOCK_QUANTITY,
       opened_at: this.now(),
     };
     this.orders.set(order.number, order);
@@ -168,6 +145,21 @@ export class World {
     asset.status = status;
     asset.zoneId = zoneId;
     return { type: FrameType.assetChanged, assetId: asset.id, from, to: zoneId, status };
+  }
+
+  /** A new clean pump on the shelf, numbered one past the highest pump on the floor. */
+  private addPump(): WorldEvent {
+    const numbers = [...this.assets.keys()].map((id) => Number(PUMP_ID.exec(id)?.[1] ?? 0));
+    const id = `IVP-${Math.max(0, ...numbers) + 1}`;
+    const asset: Asset = { id, status: 'CLEAN', zoneId: PAR.zoneId };
+    this.assets.set(id, asset);
+    return {
+      type: FrameType.assetChanged,
+      assetId: id,
+      from: RESTOCK_ORIGIN,
+      to: PAR.zoneId,
+      status: 'CLEAN',
+    };
   }
 
   private closeOrder(order: WorkOrder): WorldEvent {
@@ -188,7 +180,7 @@ export class World {
   private parState(): ParState {
     const clean = this.cleanCount();
     const { zoneId, min, max } = PAR;
-    return { zoneId, clean, min, max, state: clean < min ? 'BREACH' : 'OK' };
+    return { zoneId, clean, min, max, state: clean <= min ? 'BREACH' : 'OK' };
   }
 
   private requireAsset(assetId: string): Asset {

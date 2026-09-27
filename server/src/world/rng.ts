@@ -16,12 +16,3 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
-/** Integer in [min, max], inclusive. */
-export function randInt(rng: Rng, min: number, max: number): number {
-  return min + Math.floor(rng() * (max - min + 1));
-}
-
-/** A uniformly chosen element, or undefined for an empty list. */
-export function pick<T>(rng: Rng, items: readonly T[]): T | undefined {
-  return items[Math.floor(rng() * items.length)];
-}

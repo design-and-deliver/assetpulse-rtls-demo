@@ -46,14 +46,6 @@ function Toolbar({
         type="button"
         className={styles.button}
         disabled={!live}
-        onClick={() => void store.run({ name: 'surge', args: {} }, 'Surge ICU')}
-      >
-        Surge ICU
-      </button>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={!live}
         onClick={() => void store.run({ name: 'reset', args: {} }, 'Reset')}
       >
         Reset

@@ -22,14 +22,7 @@ export const TOPICS = ['floor', 'role:tech', 'role:ops'] as const;
 export type Topic = (typeof TOPICS)[number];
 
 /** `ping` changes nothing: the client times its ack round trip to measure real RTT. */
-export const COMMAND_NAMES = [
-  'move_asset',
-  'surge',
-  'reset',
-  'accept_wo',
-  'deliver_wo',
-  'ping',
-] as const;
+export const COMMAND_NAMES = ['move_asset', 'reset', 'accept_wo', 'deliver_wo', 'ping'] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
 /** Codes an `ack{ok:false}` can carry. */
@@ -39,7 +32,6 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'ALREADY_ASSIGNED',
   'NOT_ASSIGNED',
-  'NOTHING_READY',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -159,7 +151,6 @@ export type SequencedEvent = Extract<
 
 export const commandArgsSchemas = {
   move_asset: z.object({ assetId: z.string(), toZoneId: z.string() }),
-  surge: z.object({}),
   reset: z.object({}),
   accept_wo: z.object({ orderNumber: z.string(), techId: z.string().min(1) }),
   deliver_wo: z.object({ orderNumber: z.string() }),

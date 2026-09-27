@@ -23,16 +23,6 @@ export const WORLD_IDLE_MS = 15 * 60_000;
 /** Hospital sandbox ids: 8 lowercase alphanumerics. */
 export const HOSPITAL_ID_PATTERN = /^[a-z0-9]{8}$/;
 
-// --- Simulation (demo-time) --------------------------------------------------
-export const SOILED_TO_REPROCESSING_MS = 8_000;
-export const REPROCESSING_MS = 15_000;
-export const ROOM_EVENT_MIN_MS = 6_000;
-export const ROOM_EVENT_MAX_MS = 10_000;
-/** An open work order with no tech online is accepted by the demo bot after this. */
-export const DEMO_BOT_DELAY_MS = 45_000;
-/** "Surge ICU" pulls up to this many clean pumps at once. */
-export const SURGE_SIZE = 4;
-
 // --- Close codes -------------------------------------------------------------
 /** Unparseable frame or unsupported protocol version. */
 export const CLOSE_BAD_FRAME = 4400;

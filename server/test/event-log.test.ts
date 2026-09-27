@@ -11,7 +11,7 @@ function moved(assetId: string): WorldEvent {
     type: FrameType.assetChanged,
     assetId,
     from: 'CLEAN-UTIL',
-    to: 'ICU-1',
+    to: 'ICU-301',
     status: 'IN_USE',
   };
 }
@@ -57,6 +57,14 @@ describe('EventLog', () => {
 
   it('keeps order across the ring wrap', () => {
     expect(seqs(filled(13), 8)).toEqual([9, 10, 11, 12, 13]);
+  });
+
+  it('resyncs anything older than a barrier, and replays from it onward', () => {
+    const log = filled(4);
+    log.barrier();
+    log.append(moved('P5'));
+    expect(log.since(3)).toBeNull();
+    expect(seqs(log, 4)).toEqual([5]);
   });
 });
 

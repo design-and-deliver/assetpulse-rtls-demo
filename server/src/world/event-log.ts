@@ -17,6 +17,8 @@ export class EventLog {
   private readonly capacity: number;
   private readonly now: () => number;
   private lastSeq = 0;
+  /** No replay may start before this seq; `barrier` raises it. */
+  private floor = 0;
 
   constructor({ capacity = EVENT_LOG_SIZE, now = Date.now }: EventLogOptions = {}) {
     if (capacity < 1) throw new RangeError('EventLog capacity must be at least 1');
@@ -44,16 +46,21 @@ export class EventLog {
 
   /**
    * Every event after `lastSeq`, oldest first. Returns `null` when the gap cannot be replayed —
-   * `lastSeq` was evicted, or is ahead of this log (the server restarted) — so the caller
-   * sends a `resync` instead.
+   * `lastSeq` was evicted, is from before a `barrier`, or is ahead of this log (the server
+   * restarted) — so the caller sends a `resync` instead.
    */
   since(lastSeq: number): SequencedEvent[] | null {
     const oldestKept = Math.max(1, this.lastSeq - this.capacity + 1);
-    if (lastSeq > this.lastSeq || lastSeq < oldestKept - 1) return null;
+    if (lastSeq > this.lastSeq || lastSeq < oldestKept - 1 || lastSeq < this.floor) return null;
     const events: SequencedEvent[] = [];
     for (let s = lastSeq + 1; s <= this.lastSeq; s++) {
       events.push(this.slots[(s - 1) % this.capacity]!);
     }
     return events;
+  }
+
+  /** Marks the current seq as unreplayable-across: any `since` older than it returns null. */
+  barrier(): void {
+    this.floor = this.lastSeq;
   }
 }

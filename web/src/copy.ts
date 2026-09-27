@@ -11,19 +11,15 @@ const ZONE_LABELS = new Map(ZONES.map((z) => [z.id, z.label]));
  */
 const NEXT_STOP: Record<AssetStatus, string> = {
   CLEAN: 'Drag it to a patient room to put it in use.',
-  IN_USE: 'Drag it to Soiled Utility once the patient is done with it.',
-  SOILED: 'Drag it to Sterile Processing for cleaning.',
-  REPROCESSING: 'Drag it within Sterile Processing to mark it ready.',
-  READY: 'Ready pumps go back to Clean Utility through a work order.',
+  IN_USE: 'Drag it to another room, or back to Clean Utility.',
 };
 
 const FAILURE_TEXT: Record<CommandFailure, string> = {
-  INVALID_TRANSITION: 'That move skips a step in the pump lifecycle.',
+  INVALID_TRANSITION: 'The pump is already there.',
   NOT_FOUND: 'The server no longer knows that pump or zone.',
   BAD_ARGS: 'The server rejected the request as malformed.',
   ALREADY_ASSIGNED: 'Another tech already took that work order.',
   NOT_ASSIGNED: 'Accept the work order before delivering it.',
-  NOTHING_READY: 'No pumps are ready in Sterile Processing yet.',
   DISCONNECTED:
     'Retry once the pill shows live — the connection dropped before the server answered.',
 };

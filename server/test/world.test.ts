@@ -1,4 +1,4 @@
-import { FrameType, PAR } from '@assetpulse/protocol';
+import { FrameType, PAR, RESTOCK_ORIGIN, RESTOCK_QUANTITY } from '@assetpulse/protocol';
 import { describe, expect, it } from 'vitest';
 import { World, WorldError, type WorldEvent } from '../src/world/world.js';
 
@@ -8,17 +8,19 @@ function newWorld(): World {
   return new World({ now: () => T0 });
 }
 
-/** Surge (8 → 4 clean), then send two more to bedside: 2 clean, below PAR min 3. */
+/** Three pumps to bedside: 2 clean, at PAR min 2. */
 function breach(world: World): void {
-  world.surge();
-  world.moveAsset('IVP-105', 'MS-307');
-  world.moveAsset('IVP-106', 'MS-308');
+  world.moveAsset('IVP-101', 'ICU-301');
+  world.moveAsset('IVP-102', 'ICU-302');
+  world.moveAsset('IVP-103', 'WARD-303');
 }
 
-/** The two pumps that start in SPD finish reprocessing. */
-function readyTwo(world: World): void {
-  world.moveAsset('IVP-113', 'SPD');
-  world.moveAsset('IVP-114', 'SPD');
+/** Breach, open the order, and accept it; returns its number. */
+function acceptedOrder(world: World): string {
+  breach(world);
+  const number = orderOf(world.evaluatePar()).number;
+  world.acceptOrder(number, 'tech-1');
+  return number;
 }
 
 function orderOf(events: WorldEvent[]) {
@@ -29,6 +31,10 @@ function orderOf(events: WorldEvent[]) {
 
 function parAlerts(events: WorldEvent[]): string[] {
   return events.flatMap((e) => (e.type === FrameType.parAlert ? [e.state] : []));
+}
+
+function movedIds(events: WorldEvent[]): string[] {
+  return events.flatMap((e) => (e.type === FrameType.assetChanged ? [e.assetId] : []));
 }
 
 function codeOf(fn: () => unknown): string | undefined {
@@ -45,41 +51,43 @@ function statusOf(world: World, assetId: string) {
   return world.snapshot().assets.find((a) => a.id === assetId);
 }
 
-describe('World lifecycle', () => {
-  it('walks a pump CLEAN → IN_USE → SOILED → REPROCESSING → READY → CLEAN', () => {
+describe('World moves', () => {
+  it('puts a shelf pump in use in a room, and cleans it back on the shelf', () => {
     const world = newWorld();
-    expect(world.moveAsset('IVP-101', 'ICU-303')).toEqual([
+    expect(world.moveAsset('IVP-101', 'ICU-301')).toEqual([
       {
         type: FrameType.assetChanged,
         assetId: 'IVP-101',
         from: 'CLEAN-UTIL',
-        to: 'ICU-303',
+        to: 'ICU-301',
         status: 'IN_USE',
       },
     ]);
-    world.moveAsset('IVP-101', 'SOILED-UTIL');
-    world.moveAsset('IVP-101', 'SPD');
-    world.moveAsset('IVP-101', 'SPD');
-    expect(statusOf(world, 'IVP-101')).toEqual({ id: 'IVP-101', status: 'READY', zoneId: 'SPD' });
+    expect(world.moveAsset('IVP-101', 'CLEAN-UTIL')).toEqual([
+      {
+        type: FrameType.assetChanged,
+        assetId: 'IVP-101',
+        from: 'ICU-301',
+        to: 'CLEAN-UTIL',
+        status: 'CLEAN',
+      },
+    ]);
+  });
 
-    // READY → CLEAN happens only through a delivered work order.
-    expect(codeOf(() => world.moveAsset('IVP-101', 'CLEAN-UTIL'))).toBe('INVALID_TRANSITION');
-    world.surge(); // 7 → 3 clean
-    world.moveAsset('IVP-106', 'MS-307'); // 2 clean: breach
-    const number = orderOf(world.evaluatePar()).number;
-    world.acceptOrder(number, 'tech-1');
-    world.deliverOrder(number);
+  it('moves a pump room to room, still in use', () => {
+    const world = newWorld();
+    world.moveAsset('IVP-101', 'ICU-301');
+    world.moveAsset('IVP-101', 'WARD-304');
     expect(statusOf(world, 'IVP-101')).toEqual({
       id: 'IVP-101',
-      status: 'CLEAN',
-      zoneId: 'CLEAN-UTIL',
+      status: 'IN_USE',
+      zoneId: 'WARD-304',
     });
   });
 
-  it('rejects an illegal transition and leaves the asset untouched', () => {
+  it('rejects a move to the zone the pump is already in, and leaves it untouched', () => {
     const world = newWorld();
-    expect(codeOf(() => world.moveAsset('IVP-101', 'SOILED-UTIL'))).toBe('INVALID_TRANSITION');
-    expect(codeOf(() => world.moveAsset('IVP-109', 'HALL'))).toBe('INVALID_TRANSITION');
+    expect(codeOf(() => world.moveAsset('IVP-101', 'CLEAN-UTIL'))).toBe('INVALID_TRANSITION');
     expect(statusOf(world, 'IVP-101')).toEqual({
       id: 'IVP-101',
       status: 'CLEAN',
@@ -96,16 +104,18 @@ describe('World lifecycle', () => {
 });
 
 describe('World PAR + work orders', () => {
-  it('stays quiet while the clean shelf is at or above min', () => {
+  it('stays quiet while the clean shelf is above min', () => {
     const world = newWorld();
-    world.surge();
-    expect(world.snapshot().par).toMatchObject({ clean: 4, state: 'OK' });
+    world.moveAsset('IVP-101', 'ICU-301');
+    world.moveAsset('IVP-102', 'ICU-302');
+    expect(world.snapshot().par).toMatchObject({ clean: 3, state: 'OK' });
     expect(world.evaluatePar()).toEqual([]);
   });
 
-  it('opens exactly one work order on a PAR breach', () => {
+  it('opens exactly one work order once the shelf reaches min', () => {
     const world = newWorld();
     breach(world);
+    expect(world.snapshot().par).toMatchObject({ clean: PAR.min, state: 'BREACH' });
     const events = world.evaluatePar();
     expect(parAlerts(events)).toEqual(['BREACH']);
     expect(orderOf(events)).toEqual({
@@ -115,17 +125,17 @@ describe('World PAR + work orders', () => {
       assigned_to: null,
       location: PAR.zoneId,
       priority: 2,
-      quantity: PAR.max - 2,
+      quantity: RESTOCK_QUANTITY,
       opened_at: T0,
     });
     expect(world.snapshot().workOrders).toHaveLength(1);
   });
 
-  it('does not open a duplicate on a second breach', () => {
+  it('does not open a duplicate while one is active', () => {
     const world = newWorld();
     breach(world);
     world.evaluatePar();
-    world.moveAsset('IVP-107', 'MS-305'); // shelf drops further while the order is open
+    world.moveAsset('IVP-104', 'WARD-304'); // shelf drops further while the order is open
     expect(world.evaluatePar()).toEqual([]);
     const number = world.snapshot().workOrders[0]?.number as string;
     world.acceptOrder(number, 'tech-1');
@@ -140,58 +150,48 @@ describe('World PAR + work orders', () => {
     expect(orderOf(world.acceptOrder(number, 'tech-1'))).toMatchObject({
       state: 'accepted',
       assigned_to: 'tech-1',
+      quantity: RESTOCK_QUANTITY,
     });
     expect(codeOf(() => world.acceptOrder(number, 'tech-2'))).toBe('ALREADY_ASSIGNED');
   });
 
-  it('recomputes quantity on accept', () => {
-    const world = newWorld();
-    breach(world);
-    const number = orderOf(world.evaluatePar()).number;
-    world.moveAsset('IVP-107', 'MS-305');
-    expect(orderOf(world.acceptOrder(number, 'tech-1')).quantity).toBe(PAR.max - 1);
-  });
-
-  it('refuses delivery before accept, and with nothing READY', () => {
+  it('refuses delivery before accept', () => {
     const world = newWorld();
     breach(world);
     const number = orderOf(world.evaluatePar()).number;
     expect(codeOf(() => world.deliverOrder(number))).toBe('NOT_ASSIGNED');
-    world.acceptOrder(number, 'tech-1');
-    expect(codeOf(() => world.deliverOrder(number))).toBe('NOTHING_READY');
   });
 
-  it('delivers partially when READY < quantity, closes, and stays in breach', () => {
+  it('restocks 3 new clean pumps, closes the order, and clears PAR', () => {
     const world = newWorld();
-    breach(world);
-    // Shelf at 1 → 7 needed after accept; only one pump is READY.
-    world.moveAsset('IVP-107', 'MS-305');
-    const number = orderOf(world.evaluatePar()).number;
-    world.acceptOrder(number, 'tech-1');
-    world.moveAsset('IVP-113', 'SPD');
+    const number = acceptedOrder(world);
 
     const events = world.deliverOrder(number);
-    const moved = events.filter((e) => e.type === FrameType.assetChanged);
-    expect(moved).toHaveLength(1);
+    expect(events.filter((e) => e.type === FrameType.assetChanged)).toEqual(
+      ['IVP-106', 'IVP-107', 'IVP-108'].map((assetId) => ({
+        type: FrameType.assetChanged,
+        assetId,
+        from: RESTOCK_ORIGIN,
+        to: PAR.zoneId,
+        status: 'CLEAN',
+      })),
+    );
     expect(orderOf(events)).toMatchObject({ number, state: 'closed' });
-    expect(parAlerts(events)).toEqual([]); // 2 clean < min 3: no CLEARED
+    expect(parAlerts(events)).toEqual(['CLEARED']);
+    expect(world.snapshot().par).toMatchObject({
+      clean: PAR.min + RESTOCK_QUANTITY,
+      state: 'OK',
+    });
     expect(world.snapshot().workOrders).toEqual([]);
-
-    // The next evaluation opens a fresh order.
-    expect(orderOf(world.evaluatePar()).number).toBe('WO0010002');
   });
 
-  it('emits CLEARED only once the shelf is back at or above min', () => {
+  it('numbers new pumps past the highest one on the floor', () => {
     const world = newWorld();
-    breach(world);
-    readyTwo(world);
-    const number = orderOf(world.evaluatePar()).number;
-    world.acceptOrder(number, 'tech-1');
-
-    const events = world.deliverOrder(number);
-    expect(events.filter((e) => e.type === FrameType.assetChanged)).toHaveLength(2);
-    expect(parAlerts(events)).toEqual(['CLEARED']);
-    expect(world.snapshot().par).toMatchObject({ clean: 4, state: 'OK' });
+    world.deliverOrder(acceptedOrder(world));
+    for (const id of ['IVP-104', 'IVP-105', 'IVP-106']) world.moveAsset(id, 'ICU-301');
+    const next = orderOf(world.evaluatePar()).number;
+    world.acceptOrder(next, 'tech-1');
+    expect(movedIds(world.deliverOrder(next))).toEqual(['IVP-109', 'IVP-110', 'IVP-111']);
   });
 
   it('numbers orders sequentially across reopen and reset', () => {
@@ -207,7 +207,7 @@ describe('World PAR + work orders', () => {
 });
 
 describe('World reset', () => {
-  it('restores the initial floor and closes active orders', () => {
+  it('closes an active order and restores the initial shelf', () => {
     const world = newWorld();
     const initial = world.snapshot();
     breach(world);
@@ -215,7 +215,18 @@ describe('World reset', () => {
 
     const events = world.reset();
     expect(orderOf(events).state).toBe('closed');
+    expect(movedIds(events)).toEqual(['IVP-101', 'IVP-102', 'IVP-103']);
     expect(world.snapshot()).toEqual(initial);
     expect(world.reset()).toEqual([]);
+  });
+
+  it('drops pumps a restock added, with no event for them', () => {
+    const world = newWorld();
+    const initial = world.snapshot();
+    world.deliverOrder(acceptedOrder(world));
+    world.moveAsset('IVP-106', 'ICU-301');
+
+    expect(movedIds(world.reset())).toEqual(['IVP-101', 'IVP-102', 'IVP-103']);
+    expect(world.snapshot()).toEqual(initial);
   });
 });

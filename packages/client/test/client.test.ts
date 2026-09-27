@@ -174,10 +174,10 @@ describe('commands', () => {
   it('resolves with the matching ack', async () => {
     start();
     latest().open();
-    const done = client.send({ name: 'surge', args: {} });
+    const done = client.send({ name: 'reset', args: {} });
     const cmd = latest()
       .sentOfType(FrameType.command)
-      .find((f) => f.name === 'surge')!;
+      .find((f) => f.name === 'reset')!;
     latest().deliver({ type: FrameType.ack, cmdId: cmd.cmdId, ok: true });
     await expect(done).resolves.toMatchObject({ ok: true, cmdId: cmd.cmdId });
   });
@@ -192,7 +192,7 @@ describe('commands', () => {
 
   it('rejects immediately while not open', async () => {
     start();
-    await expect(client.send({ name: 'surge', args: {} })).rejects.toBeInstanceOf(ClientError);
+    await expect(client.send({ name: 'reset', args: {} })).rejects.toBeInstanceOf(ClientError);
   });
 });
 
@@ -200,7 +200,7 @@ describe('kill', () => {
   it('closes the socket and blocks reconnect for the given time', async () => {
     start(() => 0);
     latest().open();
-    const done = client.send({ name: 'surge', args: {} });
+    const done = client.send({ name: 'reset', args: {} });
     const killed = latest();
     client.kill(10_000);
     expect(killed.readyState).toBe(3);

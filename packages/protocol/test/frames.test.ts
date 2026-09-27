@@ -67,7 +67,6 @@ const clientFrames = {
     name: 'move_asset',
     args: { assetId: 'IVP-101', toZoneId: 'ICU-301' },
   },
-  surge: { ...env, type: FrameType.command, cmdId: 'c-3', name: 'surge', args: {} },
   reset: { ...env, type: FrameType.command, cmdId: 'c-4', name: 'reset', args: {} },
   accept_wo: {
     ...env,
@@ -122,7 +121,7 @@ describe('client frames', () => {
   });
 
   it('rejects an unknown command name', () => {
-    const bad = { ...clientFrames.surge, name: 'teleport' };
+    const bad = { ...clientFrames.reset, name: 'teleport' };
     expect(parseClientFrame(JSON.stringify(bad)).ok).toBe(false);
   });
 

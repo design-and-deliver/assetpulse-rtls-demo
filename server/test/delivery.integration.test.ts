@@ -20,8 +20,17 @@ const H1 = 'hosp0001';
 /** A tick so slow the simulator never fires: only commands change the world. */
 const FROZEN_TICK_MS = 3_600_000;
 
-const surge = { name: 'surge', args: {} } as const;
 const reset = { name: 'reset', args: {} } as const;
+const out = { name: 'move_asset', args: { assetId: 'IVP-101', toZoneId: 'ICU-301' } } as const;
+const back = { name: 'move_asset', args: { assetId: 'IVP-101', toZoneId: 'CLEAN-UTIL' } } as const;
+
+/** Moves IVP-101 out to a room and back, n times: 2n `asset_changed` events, no PAR breach. */
+async function shuffle(client: TestClient, n: number): Promise<void> {
+  for (let i = 0; i < n; i++) {
+    await client.command('out', out);
+    await client.command('back', back);
+  }
+}
 
 let historyDir: string;
 const apps: App[] = [];
@@ -104,8 +113,7 @@ describe('backpressure', () => {
     hub.attach(slow);
     const afterSeq = hub.log.seq;
 
-    await ops.command('surge', surge);
-    await ops.command('reset', reset);
+    await shuffle(ops, 4);
     await delay(600);
 
     // Compare by seq: frames broadcast before the attach may still be in flight to `ops`.
@@ -131,9 +139,7 @@ describe('resume', () => {
     dropped.close();
 
     const from = observer.frames.length;
-    for (const command of [surge, reset, surge, reset, surge]) {
-      await observer.command('gen', command);
-    }
+    await shuffle(observer, 10);
     const missed = await eventsAfter(observer, from, 20);
     expect(missed).toHaveLength(20);
 
@@ -149,27 +155,44 @@ describe('resume', () => {
   it('filters the replay by the resuming client’s topics', async () => {
     const app = await start({ tickMs: FROZEN_TICK_MS });
     const ops = await connect(app, ['floor']);
-    await ops.command('gen', surge);
+    await shuffle(ops, 2);
 
     const tech = await connect(app, ['role:tech']);
     const from = tech.frames.length;
     await tech.send({ type: FrameType.resume, lastSeq: 0 });
-    await tech.command('sync', surge); // its ack is a barrier: the replay was sent before it
+    await tech.command('sync', out); // its ack is a barrier: the replay was sent before it
     expect(tech.frames.slice(from).filter(isEvent)).toEqual([]);
   });
 
   it('sends a resync snapshot when the missed events were evicted', async () => {
     const app = await start({ tickMs: FROZEN_TICK_MS, eventLogSize: 5 });
     const ops = await connect(app, ['floor']);
-    await ops.command('gen', surge);
-    await ops.command('gen', reset);
+    await shuffle(ops, 4);
 
     const from = ops.frames.length;
     await ops.send({ type: FrameType.resume, lastSeq: 1 });
     const resync = await ops.next(FrameType.resync, () => true, from);
     expect(resync.seq).toBe(8);
-    expect(resync.snapshot.par.clean).toBe(8);
+    expect(resync.snapshot.par.clean).toBe(5);
     expect(ops.frames.slice(from).filter(isEvent)).toEqual([]);
+  });
+
+  it('resyncs every socket on reset, and refuses to replay across it', async () => {
+    const app = await start({ tickMs: FROZEN_TICK_MS });
+    const ops = await connect(app, ['floor']);
+    const watcher = await connect(app, ['role:tech']);
+    await ops.command('gen', out);
+
+    const from = watcher.frames.length;
+    await ops.command('reset', reset);
+    const live = await watcher.next(FrameType.resync, () => true, from);
+    expect(live.snapshot.par.clean).toBe(5);
+
+    const resumeFrom = ops.frames.length;
+    await ops.send({ type: FrameType.resume, lastSeq: 1 });
+    const replay = await ops.next(FrameType.resync, () => true, resumeFrom);
+    expect(replay.seq).toBe(live.seq);
+    expect(ops.frames.slice(resumeFrom).filter(isEvent)).toEqual([]);
   });
 });
 

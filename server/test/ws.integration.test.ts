@@ -11,7 +11,8 @@ import { delay, TestClient, type Frame } from './support/test-client.js';
 
 const H1 = 'hosp0001';
 const H2 = 'hosp0002';
-const surge = { name: 'surge', args: {} } as const;
+const move = (assetId: string, toZoneId: string) =>
+  ({ name: 'move_asset', args: { assetId, toZoneId } }) as const;
 
 let app: App;
 let historyDir: string;
@@ -23,10 +24,11 @@ async function connect(h: string, topics?: Topic[]): Promise<TestClient> {
   return client;
 }
 
-/** Two surges empty the clean shelf (8 → 4 → 0); the next tick opens the PAR work order. */
+/** Three pumps to bedside bring the shelf to min (5 → 2); the next tick opens the work order. */
 async function breachPar(ops: TestClient): Promise<Frame<'work_order'>> {
-  await ops.command('surge', surge);
-  await ops.command('surge', surge);
+  await ops.command('m1', move('IVP-101', 'ICU-301'));
+  await ops.command('m2', move('IVP-102', 'ICU-302'));
+  await ops.command('m3', move('IVP-103', 'WARD-303'));
   return ops.next(FrameType.workOrder, (f) => f.order.state === 'open');
 }
 
@@ -50,8 +52,8 @@ describe('ws hub', () => {
     const hello = client.of(FrameType.hello)[0]!;
     expect(hello.worldId).toBe(H1);
     expect(hello.seq).toBe(0);
-    expect(hello.snapshot.assets).toHaveLength(14);
-    expect(hello.snapshot.par).toMatchObject({ zoneId: 'CLEAN-UTIL', clean: 8, state: 'OK' });
+    expect(hello.snapshot.assets).toHaveLength(5);
+    expect(hello.snapshot.par).toMatchObject({ zoneId: 'CLEAN-UTIL', clean: 5, state: 'OK' });
     expect(hello.snapshot.workOrders).toEqual([]);
   });
 
@@ -74,19 +76,13 @@ describe('ws hub', () => {
     const ops = await connect(H1, ['floor']);
     const from = ops.frames.length;
 
-    const ok = await ops.command('mv', {
-      name: 'move_asset',
-      args: { assetId: 'IVP-101', toZoneId: 'ICU-303' },
-    });
+    const ok = await ops.command('mv', move('IVP-101', 'ICU-301'));
     expect(ok).toMatchObject({ ok: true });
     expect(ok.error).toBeUndefined();
     const changed = await ops.next(FrameType.assetChanged, (f) => f.assetId === 'IVP-101', from);
-    expect(changed).toMatchObject({ to: 'ICU-303', status: 'IN_USE' });
+    expect(changed).toMatchObject({ to: 'ICU-301', status: 'IN_USE' });
 
-    const bad = await ops.command('mv', {
-      name: 'move_asset',
-      args: { assetId: 'IVP-101', toZoneId: 'SPD' },
-    });
+    const bad = await ops.command('mv', move('IVP-101', 'ICU-301'));
     expect(bad).toMatchObject({ ok: false, error: 'INVALID_TRANSITION' });
     const missing = await ops.command('dl', {
       name: 'deliver_wo',
@@ -97,13 +93,14 @@ describe('ws hub', () => {
 
   it('replays the cached ack for a duplicate cmdId without re-applying the command', async () => {
     const ops = await connect(H1, ['floor']);
-    const first = await ops.command('dup', surge, 'same-id');
-    const second = await ops.command('dup', surge, 'same-id');
+    const first = await ops.command('dup', move('IVP-101', 'ICU-301'), 'same-id');
+    const second = await ops.command('dup', move('IVP-101', 'ICU-301'), 'same-id');
     expect(second).toEqual(first);
+    expect(second.ok).toBe(true); // a re-apply would have been refused as INVALID_TRANSITION
 
     const observer = await connect(H1);
     expect(observer.of(FrameType.hello)[0]!.snapshot.par.clean).toBe(4);
-    expect(ops.of(FrameType.assetChanged)).toHaveLength(4);
+    expect(ops.of(FrameType.assetChanged)).toHaveLength(1);
   });
 
   it('race: two techs accept the same order — exactly one wins', async () => {
@@ -142,7 +139,7 @@ describe('ws hub', () => {
     expect(ops2.of(FrameType.assetChanged)).toEqual([]);
     expect(ops2.of(FrameType.workOrder)).toEqual([]);
     const fresh = await connect(H2);
-    expect(fresh.of(FrameType.hello)[0]!.snapshot.par.clean).toBe(8);
+    expect(fresh.of(FrameType.hello)[0]!.snapshot.par.clean).toBe(5);
     expect(app.registry.size).toBe(2);
   });
 

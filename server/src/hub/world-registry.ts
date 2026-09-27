@@ -56,8 +56,6 @@ function apply(world: World, command: Command): WorldEvent[] {
   switch (command.name) {
     case 'move_asset':
       return world.moveAsset(command.args.assetId, command.args.toZoneId);
-    case 'surge':
-      return world.surge();
     case 'reset':
       return world.reset();
     case 'accept_wo':
@@ -93,10 +91,7 @@ export class WorldHub {
   ) {
     this.world = new World({ now: deps.now });
     this.log = new EventLog({ capacity: deps.eventLogSize, now: deps.now });
-    this.simulator = new Simulator(this.world, {
-      seed: deps.seed,
-      hasTech: () => this.hasTopic('role:tech'),
-    });
+    this.simulator = new Simulator(this.world, { seed: deps.seed });
     this.idleSince = deps.now();
   }
 
@@ -137,23 +132,23 @@ export class WorldHub {
     };
   }
 
+  private resyncFrame(): ServerFrame {
+    return {
+      v: PROTOCOL_VERSION,
+      ts: this.deps.now(),
+      type: FrameType.resync,
+      seq: this.log.seq,
+      snapshot: this.world.snapshot(),
+    };
+  }
+
   /**
    * What a client resuming from `lastSeq` should receive: the missed events it is subscribed
    * to, in order — or a `resync` snapshot when they have been evicted (or it is ahead of us).
    */
   replay(lastSeq: number, topics: ReadonlySet<Topic>): ServerFrame[] {
     const missed = this.log.since(lastSeq);
-    if (!missed) {
-      return [
-        {
-          v: PROTOCOL_VERSION,
-          ts: this.deps.now(),
-          type: FrameType.resync,
-          seq: this.log.seq,
-          snapshot: this.world.snapshot(),
-        },
-      ];
-    }
+    if (!missed) return [this.resyncFrame()];
     return missed.filter((event) => EVENT_TOPICS[event.type].some((t) => topics.has(t)));
   }
 
@@ -208,6 +203,7 @@ export class WorldHub {
     };
     try {
       this.publish(apply(this.world, command));
+      if (command.name === 'reset') this.resyncAll();
       return ack;
     } catch (err) {
       if (!(err instanceof WorldError)) throw err;
@@ -226,14 +222,20 @@ export class WorldHub {
     }
   }
 
+  /**
+   * A reset removes restocked pumps, which no sequenced event can express. Every socket gets a
+   * fresh snapshot, and the log refuses to replay across the reset so a resume resyncs too.
+   */
+  private resyncAll(): void {
+    this.log.barrier();
+    const frame = this.resyncFrame();
+    for (const subscriber of this.subscribers) subscriber.send(frame);
+  }
+
   private broadcast(topics: readonly Topic[], frame: ServerFrame): void {
     for (const subscriber of this.subscribers) {
       if (topics.some((t) => subscriber.topics.has(t))) subscriber.send(frame);
     }
-  }
-
-  private hasTopic(topic: Topic): boolean {
-    return [...this.subscribers].some((s) => s.topics.has(topic));
   }
 }
 

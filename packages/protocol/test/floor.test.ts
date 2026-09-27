@@ -38,10 +38,10 @@ describe('floor model', () => {
     for (const asset of INITIAL_ASSETS) expect(ZONE_IDS).toContain(asset.zoneId);
   });
 
-  it('starts the clean utility room full to PAR max', () => {
+  it('starts with every pump on the clean shelf, full to PAR max', () => {
     const clean = INITIAL_ASSETS.filter((a) => a.status === 'CLEAN' && a.zoneId === PAR.zoneId);
     expect(clean).toHaveLength(PAR.max);
-    expect(INITIAL_ASSETS).toHaveLength(14);
+    expect(INITIAL_ASSETS).toHaveLength(PAR.max);
   });
 });
 
