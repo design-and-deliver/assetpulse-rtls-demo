@@ -10,13 +10,14 @@
   "workspaces": [
     "packages/*",
     "server",
-    "web"
+    "web",
+    "mobile"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "dev": "concurrently -n server,web \"npm run dev -w @assetpulse/server\" \"npm run dev -w @assetpulse/web\"",
     "test": "vitest run",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p mobile --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
