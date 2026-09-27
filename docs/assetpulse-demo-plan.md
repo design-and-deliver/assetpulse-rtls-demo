@@ -437,13 +437,13 @@ wait, and see the replay toast count > 0 with the map consistent. Drag to an ill
 see the snap-back.
 **Commit:** `feat(web): commands, wire drawer, network kill`
 
-### ☐ 3.4 · S · ~20m — "Be the tech" QR panel + web fallback tech view
+### ☑ 3.4 · S · ~20m — "Be the tech" QR panel + web fallback tech view
 
 **Budget:** files 2 · new 1 (+0 test) · trips ≈ 6
 **Read:** `web/src/App.tsx`.
 
-- [ ] A `qrcode` package QR for `${origin}/tech?h=${hospitalId}`.
-- [ ] Until Phase 4 lands, `/tech` is served by a minimal web route in `web/`
+- [x] A `qrcode` package QR for `${origin}/tech?h=${hospitalId}`.
+- [x] Until Phase 4 lands, `/tech` is served by a minimal web route in `web/`
   (`TechFallback.tsx`: list open orders, Accept, Deliver). Phase 4 replaces it.
 
 **Verify:** `npm run build -w @assetpulse/web`, then manually: open `/tech?h=…` in a second
@@ -786,3 +786,23 @@ window plus a phone. The whole loop works.
     the backgrounded `npx tsx` leaves the node child on :8787 (EADDRINUSE); kill it by PID.
   - Not done: keyboard drag (pointer only). Pre-existing Prettier drift in
     `server/test/delivery.integration.test.ts` left alone.
+- 2026-09-27 — 3.4 done, `9d15c77` [1 session · ~25 trips · S ran long on verify]. 94 tests green;
+  web build, typecheck, lint clean.
+  - Files 4 + 1 new (budget said 2 + 1): `App.tsx` (`TechQr` panel, `qrcode.toDataURL` → `<img>`,
+    plus a link to open the view in a second window), `main.tsx` (routes `/tech` to the fallback and
+    subscribes `role:tech` only), `Panels.module.css`, `TechFallback.tsx` (new, reuses
+    `createConsoleStore`), and **`server/src/app.ts`**. The plan missed that change: `/tech` went only to
+    `mobile/dist` and returned 404 when that didn't exist. Now `/tech` falls through to the web SPA
+    when there is no tech build, so 4.3 needs no server change and just starts serving
+    `mobile/dist`.
+  - `techId` is `tech-NNNN`, freshly random on each page load (no persistence; the fallback is
+    throwaway).
+  - Verified in Chrome against the built server with `?h=qrtest34`: QR renders; `/tech` loads live;
+    double Surge → WO0010001 appears on the tech view → Accept → "Yours" + Delivered button;
+    console shows "Accepted · tech-5956"; Delivered → order closed on both, shelf back to 3.
+    ServiceNow mock logged POST → PATCH accepted → PATCH closed. Demo bot stood down while a
+    `role:tech` socket was attached, as designed.
+  - Gotcha: a Chrome-extension `ref` click on Accept once didn't land (no command sent, no PATCH);
+    clicking the same button by coordinates worked. The fault was the tool, not the app.
+  - The Prettier drift in `server/test/delivery.integration.test.ts` (CRLF) is still pre-existing
+    and was left alone.
