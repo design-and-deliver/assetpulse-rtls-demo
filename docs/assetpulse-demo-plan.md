@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** AUTHORED + CONFIRMED 2026-09-27, not started · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 1 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -193,25 +193,25 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 
 ## Phase 1 — Contract + pure world model (no sockets)
 
-### ☐ 1.1 · L · ~1h — Repo scaffold, git, workspaces, tooling, private GitHub repo
+### ☑ 1.1 · L · ~1h — Repo scaffold, git, workspaces, tooling, private GitHub repo
 
 **Budget:** files 1 (verbatim batch) · new 12 (+0 test) · trips ≈ 18
 **Read:** this doc (Decisions + ⛔ + this substep only).
 
-- [ ] Move `trimedx_clinical_asset_telemetry_bundle.html` → `archive/`.
-- [ ] Create the root `package.json`: `private`, workspaces `["packages/*","server","web","mobile"]`,
+- [x] Move `trimedx_clinical_asset_telemetry_bundle.html` → `archive/`.
+- [x] Create the root `package.json`: `private`, workspaces `["packages/*","server","web","mobile"]`,
   and the scripts `build`, `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (`eslint .`),
   and `dev` (`concurrently` server + web). Leave `mobile` out of the workspaces array until 4.1
   (an empty dir breaks `npm install`).
-- [ ] Create `tsconfig.base.json` (strict, ES2022, `moduleResolution: bundler`), `vitest.workspace.ts`,
+- [x] Create `tsconfig.base.json` (strict, ES2022, `moduleResolution: bundler`), `vitest.workspace.ts`,
   `eslint.config.js` (typescript-eslint recommended + `complexity: ["error", 10]`),
   `.prettierrc`, `.editorconfig`, `.nvmrc` (`22`), and `.gitignore` (node_modules, dist, the
   Decisions' gitignore list, `.env*`).
-- [ ] Create a `README.md` stub (title and one line) and `LICENSE` (MIT, Andrew Ciccarelli, 2026).
-- [ ] Create `.github/workflows/ci.yml`: on push/PR, Node 22, `npm ci`, typecheck, lint, test.
-- [ ] Run `npm install -D typescript vitest eslint typescript-eslint prettier concurrently cross-env rimraf`.
-- [ ] Run `git init -b main`, commit `chore: scaffold monorepo`, then `git switch -c plan/assetpulse`.
-- [ ] Run `gh repo create design-and-deliver/assetpulse-rtls-demo --private --source . --push`,
+- [x] Create a `README.md` stub (title and one line) and `LICENSE` (MIT, Andrew Ciccarelli, 2026).
+- [x] Create `.github/workflows/ci.yml`: on push/PR, Node 22, `npm ci`, typecheck, lint, test.
+- [x] Run `npm install -D typescript vitest eslint typescript-eslint prettier concurrently cross-env rimraf`.
+- [x] Run `git init -b main`, commit `chore: scaffold monorepo`, then `git switch -c plan/assetpulse`.
+- [x] Run `gh repo create design-and-deliver/assetpulse-rtls-demo --private --source . --push`,
   then push `plan/assetpulse`.
 
 **Verify:** `npm run typecheck && npm run lint && npm test -- --passWithNoTests`, then
@@ -598,3 +598,21 @@ window plus a phone. The whole loop works.
 - 2026-09-27 — plan authored (Opus). Toolchain verified on dev machine (see Target environment).
   User confirmed 2026-09-27: Azure App Service B1 (~$13/mo), GitHub account
   `design-and-deliver`, full plan including Phase 4 (RN). Ready for 1.1.
+- 2026-09-27 — 1.1 done, `fe65c82` on `main` [1 session · ~30 trips · peak ~95k · L holds].
+  Deviations:
+  - Tooling resolved to TS 6.0, ESLint 10, Vitest 5. Vitest 5 has no workspace file and errors
+    on a `projects` list that matches nothing, so `vitest.config.ts` lists only workspaces that
+    exist. No edit is needed when server/web appear.
+  - `tsc -b` needs at least one reference, so `tsconfig.tools.json` (covers `vitest.config.ts`)
+    is referenced. Later substeps ADD their tsconfig to the root `references`.
+  - ESLint ignores `.claude/**` (local hooks).
+  - `mobile` is also left out of `workspaces` until 4.1.
+  - `CLAUDE.md` is gitignored (autoconfig boilerplate pointing at gitignored `.claude/`).
+    Decide in 5.4 whether to commit a project CLAUDE.md.
+  - The plan doc IS tracked, and it names local paths and the JD. **5.5 must scrub it or move it
+    to `.claude/plans/` before going public.**
+  BLOCKED (partial):
+  - The `main` push was rejected because the gh token lacks the `workflow` scope (ci.yml).
+    `plan/assetpulse` pushed, so GitHub's default branch is currently `plan/assetpulse`.
+  - Recovery: the user runs `gh auth refresh -h github.com -s workflow`, then
+    `git push -u origin main && gh repo edit --default-branch main`.
