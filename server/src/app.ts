@@ -46,14 +46,18 @@ function notFound(res: http.ServerResponse): void {
   res.writeHead(404).end();
 }
 
-/** `/tech` and `/tech/...` go to the tech build (prefix stripped); everything else to web. */
+/**
+ * `/tech` and `/tech/...` go to the tech build (prefix stripped); everything else to web. With no
+ * tech build yet, `/tech` falls through to web, whose fallback tech view routes on the path.
+ */
 function staticHandler(webDir: string, techDir: string) {
   const web = spa(webDir);
   const tech = spa(techDir);
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
     const url = req.url ?? '/';
     const rest = url.slice(TECH_PREFIX.length);
-    const isTech = url.startsWith(TECH_PREFIX) && (rest === '' || '/?'.includes(rest[0]!));
+    const isTech =
+      tech !== null && url.startsWith(TECH_PREFIX) && (rest === '' || '/?'.includes(rest[0]!));
     const handler = isTech ? tech : web;
     if (!handler) return notFound(res);
     if (isTech) req.url = rest.startsWith('/') ? rest : `/${rest}`;

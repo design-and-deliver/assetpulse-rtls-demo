@@ -1,4 +1,5 @@
 import { FLOOR_NAME } from '@assetpulse/protocol';
+import QRCode from 'qrcode';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { AlertRail } from './AlertRail';
 import styles from './App.module.css';
@@ -70,6 +71,42 @@ function Toolbar({
   );
 }
 
+/** Hands the same hospital to a phone: scan, and the tech view joins this world. */
+function TechQr({ hospitalId }: { hospitalId: string }) {
+  const url = `${window.location.origin}/tech?h=${hospitalId}`;
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void QRCode.toDataURL(url, { margin: 1, width: 160 }).then((data) => live && setSrc(data));
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return (
+    <section className={panels.panel} aria-labelledby="tech-heading">
+      <h2 id="tech-heading" className={panels.heading}>
+        Be the tech
+      </h2>
+      {src && (
+        <img
+          className={panels.qr}
+          src={src}
+          width={160}
+          height={160}
+          alt="QR code for the tech view"
+        />
+      )}
+      <p className={panels.muted}>
+        Scan with a phone, or{' '}
+        <a href={url} target="_blank" rel="noreferrer">
+          open the tech view
+        </a>{' '}
+        in a second window.
+      </p>
+    </section>
+  );
+}
+
 export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: string }) {
   const { world, connection, toasts } = useSyncExternalStore(store.subscribe, store.getState);
   const [theme, toggleTheme] = useTheme();
@@ -108,6 +145,7 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
             <ParGauge clean={cleanCount(world)} min={par.min} max={par.max} breach={breach} />
           )}
           <AlertRail orders={activeOrders(world)} now={now} />
+          <TechQr hospitalId={hospitalId} />
         </aside>
       </main>
       <WireDrawer stats={store.client.stats} />
