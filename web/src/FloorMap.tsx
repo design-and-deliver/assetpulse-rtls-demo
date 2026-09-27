@@ -7,6 +7,7 @@ import {
   type Asset,
 } from '@assetpulse/protocol';
 import { useEffect, useRef, type PointerEvent } from 'react';
+import { dropTarget } from './drop';
 import styles from './FloorMap.module.css';
 import type { PositionTracker } from './positions';
 import { STATUS_META } from './status';
@@ -22,6 +23,7 @@ interface Props {
 
 interface Drag {
   assetId: string;
+  status: Asset['status'];
   fromZoneId: string;
 }
 
@@ -41,8 +43,8 @@ function zoneAt(p: { x: number; y: number }): string | null {
 }
 
 /**
- * Pointer drag for the dots: the dot is pinned under the pointer via the tracker, and a drop on a
- * different zone hands off to `onMove`; a drop anywhere else lets the dot glide back.
+ * Pointer drag for the dots: the dot is pinned under the pointer via the tracker, and a drop that
+ * `dropTarget` accepts hands off to `onMove`; any other drop lets the dot glide back.
  */
 function useDotDrag(positions: PositionTracker, onMove: Props['onMove']) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -52,7 +54,7 @@ function useDotDrag(positions: PositionTracker, onMove: Props['onMove']) {
     const svg = svgRef.current;
     if (!svg || e.button !== 0) return;
     svg.setPointerCapture(e.pointerId);
-    drag.current = { assetId: asset.id, fromZoneId: asset.zoneId };
+    drag.current = { assetId: asset.id, status: asset.status, fromZoneId: asset.zoneId };
     positions.hold(asset.id, toSvgPoint(svg, e));
   };
   const move = (e: PointerEvent<SVGSVGElement>) => {
@@ -62,8 +64,8 @@ function useDotDrag(positions: PositionTracker, onMove: Props['onMove']) {
     const d = drag.current;
     if (!d) return;
     drag.current = null;
-    const to = zoneAt(toSvgPoint(e.currentTarget, e));
-    if (to && to !== d.fromZoneId) onMove(d.assetId, to);
+    const to = dropTarget(d.status, d.fromZoneId, zoneAt(toSvgPoint(e.currentTarget, e)));
+    if (to) onMove(d.assetId, to);
     else positions.release(d.assetId, performance.now());
   };
   const cancel = () => {
