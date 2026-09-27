@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 10 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 14 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -468,16 +468,16 @@ window, and a breach there shows the order. Accept it, and the desktop shows it 
 typecheck`. Manually, `npx expo start --web` shows "connected".
 **Commit:** `feat(mobile): expo tech handheld scaffold`
 
-### ☐ 4.2 · M · ~1h — Work-order inbox: alert, accept, deliver, lose-the-race
+### ☑ 4.2 · M · ~1h — Work-order inbox: alert, accept, deliver, lose-the-race
 
 **Budget:** files 2 · new 2 (+0 test) · trips ≈ 14
 **Read:** `mobile/App.tsx`.
 
-- [ ] Show a card for each open order (number, quantity, location). A new order triggers
+- [x] Show a card for each open order (number, quantity, location). A new order triggers
   `Vibration.vibrate()` (guarded, since iOS web is a no-op) plus a visual flash.
-- [ ] **Accept** sends `accept_wo`, then shows **Delivered**, which sends `deliver_wo`.
+- [x] **Accept** sends `accept_wo`, then shows **Delivered**, which sends `deliver_wo`.
   `ALREADY_ASSIGNED` shows "Taken by another tech" and removes the card.
-- [ ] A connection banner shows while reconnecting.
+- [x] A connection banner shows while reconnecting.
 
 **Verify:** `npm run build:web -w mobile && npm run typecheck`, then manually: two tech tabs
 accept at once, and exactly one wins.
@@ -826,3 +826,22 @@ window plus a phone. The whole loop works.
   - Gotcha: stopping the `expo start` background task left Metro listening on :8081 as an orphan;
     it had to be killed by PID.
   - The server has no `start` script; run it with `node server/dist/index.js`.
+- 2026-09-27 — 4.2 done, `7452359` [1 session · ~35 trips · M over budget on trips]. 94 tests
+  green; typecheck, lint and format are clean, and `build:web` exports.
+  - Files: `App.tsx` is now layout only. `src/useTechSession.ts` holds the client, the order map
+    and accept/deliver, and `src/OrderCard.tsx` is the card. That's 1 edited + 2 new, as budgeted.
+  - Visible orders are `open`, plus `accepted` where `assigned_to` is this tech. A lost race
+    therefore disappears through the `work_order` frame even when that frame beats the ack.
+    `ALREADY_ASSIGNED` adds a 3s "Taken by another tech" notice.
+  - Only order numbers not already seen buzz and flash, so `hello`/`resync` replays stay quiet.
+    The seen set lives in a ref, not in a state updater, so StrictMode can't double-buzz.
+    `Vibration.vibrate` is wrapped in a try/catch.
+  - Race verified, but not with two real clicks. Hidden Chrome tabs starve timers, and
+    back-to-back tool clicks are slower than the broadcast, so the second tab only ever saw the
+    card vanish. Deterministic setup instead: a Node tech sends `accept_wo` at T, and the tab
+    spins synchronously until T+50ms and then clicks. The rival's ack was `ok`, the tab got
+    `ALREADY_ASSIGNED`, and only one PATCH hit the mock.
+  - The reconnect banner shows when the server is killed and clears when it restarts.
+    Delivered closes the order.
+  - Demo gotcha: one `surge` from the initial floor leaves 3 clean pumps, which equals PAR min,
+    so nothing opens. It takes two surges, or a room event, to breach.
