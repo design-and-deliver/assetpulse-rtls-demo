@@ -21,7 +21,15 @@ export const FrameType = {
 export const TOPICS = ['floor', 'role:tech', 'role:ops'] as const;
 export type Topic = (typeof TOPICS)[number];
 
-export const COMMAND_NAMES = ['move_asset', 'surge', 'reset', 'accept_wo', 'deliver_wo'] as const;
+/** `ping` changes nothing: the client times its ack round trip to measure real RTT. */
+export const COMMAND_NAMES = [
+  'move_asset',
+  'surge',
+  'reset',
+  'accept_wo',
+  'deliver_wo',
+  'ping',
+] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
 /** Codes an `ack{ok:false}` can carry. */
@@ -155,6 +163,7 @@ export const commandArgsSchemas = {
   reset: z.object({}),
   accept_wo: z.object({ orderNumber: z.string(), techId: z.string().min(1) }),
   deliver_wo: z.object({ orderNumber: z.string() }),
+  ping: z.object({}),
 } satisfies Record<CommandName, z.ZodType>;
 
 export type CommandArgs = { [K in CommandName]: z.infer<(typeof commandArgsSchemas)[K]> };

@@ -42,6 +42,10 @@ export const CLOSE_CAPACITY = 4503;
 // --- Client reconnect --------------------------------------------------------
 export const RECONNECT_BASE_MS = 500;
 export const RECONNECT_MAX_MS = 10_000;
+/** The client times a `ping` command round trip this often to report real RTT. */
+export const CLIENT_PING_MS = 5_000;
+/** Raw frames (both directions) the client keeps for the wire drawer. */
+export const WIRE_LOG_SIZE = 200;
 
 /**
  * Exponential backoff with jitter: `min(max, base * 2^attempt) * (0.5 + random / 2)`.

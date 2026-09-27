@@ -64,6 +64,8 @@ function apply(world: World, command: Command): WorldEvent[] {
       return world.acceptOrder(command.args.orderNumber, command.args.techId);
     case 'deliver_wo':
       return world.deliverOrder(command.args.orderNumber);
+    case 'ping':
+      return [];
   }
 }
 
@@ -157,6 +159,8 @@ export class WorldHub {
 
   /** Runs a command at most once per `cmdId`; a retry gets the original ack back. */
   execute(cmdId: string, command: Command): Ack {
+    // Pings are side-effect free and frequent; caching them would evict real command ids.
+    if (command.name === 'ping') return this.run(cmdId, command);
     const cached = this.cache.get(cmdId);
     if (cached) return cached;
     const ack = this.run(cmdId, command);

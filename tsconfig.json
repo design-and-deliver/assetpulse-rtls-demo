@@ -3,6 +3,7 @@
   "references": [
     { "path": "./tsconfig.tools.json" },
     { "path": "./packages/protocol" },
+    { "path": "./packages/client" },
     { "path": "./server" }
   ]
 }

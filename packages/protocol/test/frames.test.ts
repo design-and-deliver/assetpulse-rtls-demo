@@ -83,6 +83,7 @@ const clientFrames = {
     name: 'deliver_wo',
     args: { orderNumber: 'WO0010001' },
   },
+  ping: { ...env, type: FrameType.command, cmdId: 'c-7', name: 'ping', args: {} },
 };
 
 describe('server frames', () => {
