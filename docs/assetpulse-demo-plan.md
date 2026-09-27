@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 14 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 15 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -483,13 +483,13 @@ typecheck`. Manually, `npx expo start --web` shows "connected".
 accept at once, and exactly one wins.
 **Commit:** `feat(mobile): work-order inbox with ack handling`
 
-### ☐ 4.3 · S · ~20m — Serve the Expo build at `/tech`, retire the fallback
+### ☑ 4.3 · S · ~20m — Serve the Expo build at `/tech`, retire the fallback
 
 **Budget:** files 3 · new 0 (+0 test) · trips ≈ 8
 **Read:** `server/src/index.ts`, `web/src/App.tsx` (the route to the fallback).
 
-- [ ] The root `build` builds protocol → client → server → web → mobile web.
-- [ ] Delete `TechFallback.tsx` and its route (re-verify with
+- [x] The root `build` builds protocol → client → server → web → mobile web.
+- [x] Delete `TechFallback.tsx` and its route (re-verify with
   `grep -rn TechFallback web/src` = 0 hits).
 
 **Verify:** `npm run build && node server/dist/index.js`, then `/tech?h=test` renders the Expo
@@ -845,3 +845,20 @@ window plus a phone. The whole loop works.
     Delivered closes the order.
   - Demo gotcha: one `surge` from the initial floor leaves 3 clean pumps, which equals PAR min,
     so nothing opens. It takes two surges, or a room event, to breach.
+- 2026-09-27 — 4.3 done, `fc5d009` [1 session · ~14 trips · S on budget]. 94 tests green;
+  typecheck, lint and format are clean.
+  - Root `build` is now explicit and ordered: `-w protocol -w client -w server -w web`, then
+    `build:web -w mobile`. The old `--workspaces` run went alphabetically (client before protocol)
+    and never reached mobile, which has no `build` script.
+  - Unplanned (a 4th file): `mobile/app.json` needs `experiments.baseUrl: "/tech"`. Without it
+    the export's `<script src="/_expo/...">` has no `/tech` prefix, falls through to the web SPA,
+    and gets `index.html` back. It now emits `/tech/_expo/...`, which serves as `text/javascript`.
+  - `web/src/main.tsx` lost the `isTech` branch and the tech-only `role:tech` topic.
+    `TechFallback.tsx` is deleted (0 grep hits), and the `app.ts` doc comment no longer
+    mentions the fallback.
+  - Verified in Chrome on the built server: `/tech?h=test12ab` → "AssetPulse · Tech /
+    tech-6110 · Hospital test12ab · connected" with no console errors; `/` still serves the
+    console.
+  - Gotchas: `curl` is permission-denied in this environment, so use `node -e` + `fetch` for
+    HTTP probes. Editing files with Windows `python3` writes CRLF, which Prettier then flags;
+    convert back with `sed -i 's/\r$//'`.
