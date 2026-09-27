@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 1 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 2 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -219,18 +219,18 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Commit:** the `main` commit above. This substep's plan tick goes in a second commit,
 `plan: tick 1.1 + ledger`, on the branch.
 
-### ☐ 1.2 · M · ~45m — `packages/protocol`: envelope, frames, floor, constants
+### ☑ 1.2 · M · ~45m — `packages/protocol`: envelope, frames, floor, constants
 
 **Budget:** files 1 · new 4 (+1 test) · trips ≈ 12
 **Read:** this doc (Decisions: "Two streams", "Floor model", "Work-order shape").
 
-- [ ] Create `packages/protocol/{package.json,tsconfig.json}` for `@assetpulse/protocol` (dep: `zod`).
-- [ ] `src/constants.ts`: every timing constant from Decisions, `PROTOCOL_VERSION = 1`,
+- [x] Create `packages/protocol/{package.json,tsconfig.json}` for `@assetpulse/protocol` (dep: `zod`).
+- [x] `src/constants.ts`: every timing constant from Decisions, `PROTOCOL_VERSION = 1`,
   and the close codes `4400` (bad version/frame) and `4503` (capacity).
-- [ ] `src/floor.ts`: zones as `{id, kind: "room"|"clean"|"soiled"|"spd"|"hall", label, rect}`,
+- [x] `src/floor.ts`: zones as `{id, kind: "room"|"clean"|"soiled"|"spd"|"hall", label, rect}`,
   laid out on 1000×600, plus the `PAR = { zone: "CLEAN-UTIL", min: 3, max: 8 }` config and the
   initial asset table.
-- [ ] `src/frames.ts`, with each frame in its own zod schema and a discriminated union:
+- [x] `src/frames.ts`, with each frame in its own zod schema and a discriminated union:
   - **Server → client:**
     - `hello{worldId, seq, snapshot}` (snapshot = assets, workOrders, par)
     - `positions{batch:[{assetId,x,y,zoneId}]}`, which has **no seq**
@@ -243,8 +243,8 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
     - `resume{lastSeq}`
     - `command{cmdId, name, args}`, where `name` is one of `move_asset`, `surge`, `reset`,
       `accept_wo`, `deliver_wo`
-- [ ] Export `parseClientFrame` / `parseServerFrame` (return `{ok, frame} | {ok:false, error}`).
-- [ ] `test/frames.test.ts`: round-trip every frame, reject unknown `type`, reject `v:2`.
+- [x] Export `parseClientFrame` / `parseServerFrame` (return `{ok, frame} | {ok:false, error}`).
+- [x] `test/frames.test.ts`: round-trip every frame, reject unknown `type`, reject `v:2`.
 
 **Verify:** `npm test -w @assetpulse/protocol && npm run typecheck`
 **Commit:** `feat(protocol): frame schemas, floor model, constants`
@@ -616,3 +616,17 @@ window plus a phone. The whole loop works.
     `plan/assetpulse` pushed, so GitHub's default branch is currently `plan/assetpulse`.
   - Recovery: the user runs `gh auth refresh -h github.com -s workflow`, then
     `git push -u origin main && gh repo edit --default-branch main`.
+- 2026-09-27 — 1.2 done, `2f4634e` [same session as 1.1 · ~14 trips · M holds]. 27 tests green.
+  - zod resolved to 4.6. Packages run by Node use `module/moduleResolution: NodeNext` (imports
+    carry `.js`), overriding the base's `bundler`.
+  - Protocol `exports` has a `source` condition → `src/index.ts`, and `default` → `dist`.
+    **Later:** server (tsx), web (vite), and vitest configs should set `resolve.conditions:
+    ['source']` (or build protocol first). Otherwise they import a stale or missing `dist`.
+  - Each new workspace needs a `"test": "vitest run"` script plus its tsconfig added to the root
+    `references` (the plan's `npm test -w` Verify commands rely on it).
+  - Command args are validated per-command in `parseClientFrame` (`args:` error prefix), and
+    `ClientFrame` is typed as a discriminated union on `name`.
+  - Error codes live in `ERROR_CODES` (`frames.ts`). 1.3's `WorldError` codes must use that list.
+  - Test files are not in any tsconfig, so tsc doesn't typecheck them (vitest runs them). Revisit
+    if type drift in tests bites.
+  - Still open from 1.1: `main` isn't pushed (gh `workflow` scope).
