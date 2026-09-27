@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 3 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 6 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -309,23 +309,23 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 
 ## Phase 2 — WebSocket server
 
-### ☐ 2.1 · L · ~1.5h — ws server: hello, subscribe, commands + acks, worlds per hospital
+### ☑ 2.1 · L · ~1.5h — ws server: hello, subscribe, commands + acks, worlds per hospital
 
 **Budget:** files 4 · new 3 (+1 test) · trips ≈ 22
 **Read:** `server/src/world/*.ts` (signatures via `grep -n "export"`), `packages/protocol/src/frames.ts`.
 
-- [ ] `server/src/hub/world-registry.ts`: get-or-create a World per `h`. Handles cap/evict/GC
+- [x] `server/src/hub/world-registry.ts`: get-or-create a World per `h`. Handles cap/evict/GC
   (Decisions) and owns one `setInterval` tick per world, which is stopped on GC.
-- [ ] `server/src/hub/connection.ts`: per-socket state `{worldId, topics:Set, lastSentSeq}`.
+- [x] `server/src/hub/connection.ts`: per-socket state `{worldId, topics:Set, lastSentSeq}`.
   - Parse with `parseClientFrame`; an invalid frame gets close 4400.
   - A `command` checks the LRU first (replaying the cached ack if hit), else runs it on the
     World, broadcasts the resulting events, and sends an `ack`.
   - A `WorldError` becomes `ack{ok:false, error: code}`.
-- [ ] Topic routing: `work_order` goes to `role:tech` + `role:ops`; `asset_changed` / `par_alert`
+- [x] Topic routing: `work_order` goes to `role:tech` + `role:ops`; `asset_changed` / `par_alert`
   go to `floor`.
-- [ ] `server/src/index.ts`: `http.createServer` + `new WebSocketServer({ server, path: "/ws" })`,
+- [x] `server/src/index.ts`: `http.createServer` + `new WebSocketServer({ server, path: "/ws" })`,
   listening on `process.env.PORT ?? 8787`, plus `GET /healthz` → `{ok, worlds, sockets}`.
-- [ ] `server/test/ws.integration.test.ts` (real sockets, port 0), covering:
+- [x] `server/test/ws.integration.test.ts` (real sockets, port 0), covering:
   - hello snapshot
   - subscribe filtering (a tech gets `work_order`, not `positions`, unless it subscribed to
     `floor`)
@@ -665,3 +665,17 @@ window plus a phone. The whole loop works.
     `PAYLOAD` excludes `v`, `ts`, `seq`, `type`.
   - `ServiceNowMock.submit(hospitalId, order)`: POST when `open`, PATCH `?number=` otherwise;
     `opened_at` in glide format, plus `u_hospital_id`. 2.1 wires both adapters to `work_order`.
+- 2026-09-27 — 2.1 done, `ad25282` [1 session · ~10 trips · L holds]. 11 new tests green (47 server).
+  - Files: `hub/world-registry.ts` (`WorldHub` + `WorldRegistry`), `hub/connection.ts`, `app.ts`
+    (`startApp({port?, sink?, serviceNow?, now?, maxWorlds?, idleMs?, tickMs?, sweepMs?,
+    seedFor?})` → `{port, registry, sink, close()}`), `index.ts` (entry; SIGINT/SIGTERM →
+    `app.close()`, which flushes the history sink).
+  - `WorldHub.publish` is the single path for every event: log → sink → ServiceNow (work_order)
+    → topic fan-out. Positions go out **every sim tick** to `floor` via `sendPositions` — 2.2
+    replaces that with the 250 ms coalesced flush + backpressure.
+  - Topics start EMPTY; `subscribe` REPLACES the set. Only `hello` is sent before subscribing.
+  - `resume` is parsed and ignored (a stub case in `Connection.handle`) — 2.2 implements it.
+    `Connection.lastSentSeq` is already tracked in `send`.
+  - The command cache is per WORLD, so cmdIds must be world-unique (3.1: `crypto.randomUUID()`).
+    The race test first failed on per-client cmdId counters colliding.
+  - Bad `h` → close 4400; world cap with none idle → 4503. Seeds = FNV-1a of the hospital id.
