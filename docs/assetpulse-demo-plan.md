@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 15 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 16 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -498,15 +498,15 @@ app, and `grep -rn TechFallback web/src` is empty.
 
 ## Phase 5 — Ship
 
-### ☐ 5.1 · M · ~45m — One Playwright e2e over the whole loop
+### ☑ 5.1 · M · ~45m — One Playwright e2e over the whole loop
 
 **Budget:** files 1 · new 2 (+1 test) · trips ≈ 14
 **Read:** none beyond the ⛔ section.
 
-- [ ] `e2e/loop.spec.ts`: start the built server; the console page hits Surge, and the tech
+- [x] `e2e/loop.spec.ts`: start the built server; the console page hits Surge, and the tech
   page (a second context) sees the order. Accept, then Deliver, and the console PAR shows
   `CLEARED`. Kill network, then a replay toast appears.
-- [ ] Add it to CI as a separate job (`npx playwright install --with-deps chromium`).
+- [x] Add it to CI as a separate job (`npx playwright install --with-deps chromium`).
 
 **Verify:** `npx playwright test`
 **Commit:** `test(e2e): full dispatch loop`
@@ -862,3 +862,19 @@ window plus a phone. The whole loop works.
   - Gotchas: `curl` is permission-denied in this environment, so use `node -e` + `fetch` for
     HTTP probes. Editing files with Windows `python3` writes CRLF, which Prettier then flags;
     convert back with `sed -i 's/\r$//'`.
+- 2026-09-27 — 5.1 done, `94d2981` (+ fix `10ed03f`) [1 session · ~30 trips · M overran: flake hunt].
+  12/12 local runs green at ~16 s; 98 unit tests green.
+  - `playwright.config.ts` serves `node server/dist/index.js` on :8790 (needs `npm run build`
+    first); CI job `e2e` builds, installs chromium, runs, uploads `test-results/` on failure.
+  - The first draft waited on sim timers for READY pumps and failed 1 in 5: room events drain
+    the shelf faster than the 8 s + 15 s reprocess pipeline refills READY (evidence: 12/14 pumps
+    IN_USE after 100 s). The spec now STAGES 4 READY pumps by dragging on the console, so one
+    delivery reliably emits CLEARED.
+  - Unplanned product fix (`10ed03f`, user-approved): `FloorMap` dropped every same-zone drop, so
+    the "drag within Sterile Processing to mark it ready" hint never worked. `web/src/drop.ts`
+    `dropTarget()` lets REPROCESSING advance in place; `drop.test.ts` is the first web unit test.
+  - Deviation: the console never renders the literal `CLEARED`; the spec asserts its visible
+    effect (the "Below PAR" line hides and Work orders reads "None open").
+  - Drag gotchas: a pump that just changed zones glides ~1.5 s, so grab only when it moves less
+    than one dot width per 200 ms (idle jitter is ±6 units/tick, so a "still" check never
+    passes). Retry misses via `toPass`.
