@@ -47,8 +47,8 @@ function notFound(res: http.ServerResponse): void {
 }
 
 /**
- * `/tech` and `/tech/...` go to the tech build (prefix stripped); everything else to web. With no
- * tech build yet, `/tech` falls through to web, whose fallback tech view routes on the path.
+ * `/tech` and `/tech/...` go to the tech build (prefix stripped; its export is built with
+ * `baseUrl: /tech`, so its asset URLs carry the prefix); everything else goes to web.
  */
 function staticHandler(webDir: string, techDir: string) {
   const web = spa(webDir);
