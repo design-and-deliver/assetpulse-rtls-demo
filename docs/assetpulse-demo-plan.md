@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 9 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 10 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -420,17 +420,17 @@ color, or dark mode.
 check with `npm run dev`: the map animates and the pill shows a measured RTT.
 **Commit:** `feat(web): live floor map`
 
-### ☐ 3.3 · M · ~1h — Interactions: drag, surge, wire drawer, kill network
+### ☑ 3.3 · M · ~1h — Interactions: drag, surge, wire drawer, kill network
 
 **Budget:** files 3 · new 2 (+0 test) · trips ≈ 15
 **Read:** `web/src/FloorMap.tsx`, `packages/client/src/index.ts` (exports).
 
-- [ ] Drag an asset dot to a zone (pointer events) sends `move_asset`. Update optimistically. On
+- [x] Drag an asset dot to a zone (pointer events) sends `move_asset`. Update optimistically. On
   `ack.ok=false`, snap back and show a toast with the error code in plain words.
-- [ ] Toolbar: **Surge ICU**, **Reset**, and **Kill network 10 s**.
-- [ ] `WireDrawer.tsx`: a collapsible list of `stats.lastFrameRaw` with direction, time, and
+- [x] Toolbar: **Surge ICU**, **Reset**, and **Kill network 10 s**.
+- [x] `WireDrawer.tsx`: a collapsible list of `stats.lastFrameRaw` with direction, time, and
   type, plus a filter toggle to hide `positions`.
-- [ ] A "missed while offline: N events replayed" toast after a resume.
+- [x] A "missed while offline: N events replayed" toast after a resume.
 
 **Verify:** `npm run build -w @assetpulse/web && npm run lint`, then manually: kill the network,
 wait, and see the replay toast count > 0 with the map consistent. Drag to an illegal zone and
@@ -757,3 +757,32 @@ window plus a phone. The whole loop works.
     screenshots (which paint) showed the dots moving.
   - Not seen live: a PAR breach (the sim never dropped below min in the window). 3.3's Surge
     button makes it easy to trigger and eyeball.
+- 2026-09-27 — 3.3 done, `d12c4cb` [1 session · ~35 trips · M ran long on verify]. 94 tests green;
+  web build, typecheck, lint clean.
+  - Drag: pointer capture on the `<svg>`, dot pinned via `PositionTracker.hold()`. On drop to a
+    different zone, `store.moveAsset` patches the asset's `zoneId` optimistically; ok →
+    `releaseWhenIn(zoneRect)` keeps the dot at the drop point until the server's reported point
+    enters the zone (the server walks it from the old spot, which would look like a snap-back),
+    with a 4 s `expire` fallback; refused → revert (only if no newer frame replaced the optimistic
+    copy), `release()` tweens back, error toast. `DISCONNECTED` (send while killed) is folded in as
+    a failure code.
+  - Copy in `web/src/copy.ts` (a 3rd new file, over the budget's 2): snap-back toast = what +
+    why + way out ("IVP-103 (Clean) can't go to Hallway. Drag it to a patient room…"), per the UX
+    log's warnings-name-the-trigger / action-lines-lead. The per-status hint mirrors the server
+    lifecycle for copy only; the ack stays the verdict. Refusal toasts use the soiled amber, not
+    `--alert` (reserved for PAR breach).
+  - Replay toast: store counts `asset_changed`/`par_alert`/`work_order` between a reconnect's
+    `open` and the first ack (`hello` excluded — sent on every connect); a `resync` says
+    "floor reloaded" instead.
+  - WireDrawer polls `stats.lastFrameRaw` every 500 ms while open (mutable ring buffer, not
+    observable); row keys come from a WeakMap on entry identity, so open `<details>` don't jump.
+  - Verified in Chrome against the built server: illegal drag → snap-back + toast; legal drag
+    IVP-105 → ICU-303 (command → asset_changed → ack ok in the drawer); kill → "Offline · back in
+    8 s" → `live` + "Missed while offline: 1 event replayed."; Surge 7→3 clean, Reset → 8; double
+    Surge → 0 on shelf, PAR breach live (red Clean Utility, "Below PAR", WO opened) — closes 3.2's
+    open item. No console errors.
+  - Gotchas: `sirv` (no `dev: true`) indexes `web/dist` at startup, so a rebuild behind a running
+    server 404s the new bundle hash and the page renders blank — restart it. On Windows, stopping
+    the backgrounded `npx tsx` leaves the node child on :8787 (EADDRINUSE); kill it by PID.
+  - Not done: keyboard drag (pointer only). Pre-existing Prettier drift in
+    `server/test/delivery.integration.test.ts` left alone.
