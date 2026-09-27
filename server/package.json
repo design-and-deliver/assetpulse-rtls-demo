@@ -6,13 +6,16 @@
   "description": "Server-authoritative AssetPulse world, simulator, and WebSocket fan-out.",
   "scripts": {
     "build": "tsc -b",
+    "dev": "tsx watch src/index.ts",
     "test": "vitest run"
   },
   "dependencies": {
     "@assetpulse/protocol": "*",
+    "sirv": "^3.0.2",
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.15"
   }
 }
