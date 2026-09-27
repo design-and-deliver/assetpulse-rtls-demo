@@ -290,18 +290,18 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/server && npm run lint`
 **Commit:** `feat(server): deterministic simulator`
 
-### ☐ 1.5 · M · ~45m — Event log ring buffer, command LRU, history sink
+### ☑ 1.5 · M · ~45m — Event log ring buffer, command LRU, history sink
 
 **Budget:** files 1 · new 3 (+1 test) · trips ≈ 12
 **Read:** `server/src/world/world.ts:1-60` (types only).
 
-- [ ] `server/src/world/event-log.ts`: `append(event)` assigns `seq`, keeps the last 1,000, and
+- [x] `server/src/world/event-log.ts`: `append(event)` assigns `seq`, keeps the last 1,000, and
   `since(lastSeq)` returns the events, or `null` if `lastSeq` is older than the buffer (which
   means a resync is needed).
-- [ ] `server/src/world/command-cache.ts`: LRU(1000) of `cmdId → ack`.
-- [ ] `server/src/adapters/history-sink.ts`: an appending JSONL writer (async queue with no awaits
+- [x] `server/src/world/command-cache.ts`: LRU(1000) of `cmdId → ack`.
+- [x] `server/src/adapters/history-sink.ts`: an appending JSONL writer (async queue with no awaits
   in the hot path), plus `server/src/adapters/servicenow-mock.ts` (logs `wm_order` payloads).
-- [ ] Tests: seq monotonic, `since` boundary cases (0, exact edge, evicted), LRU eviction order,
+- [x] Tests: seq monotonic, `since` boundary cases (0, exact edge, evicted), LRU eviction order,
   and a sink row that has exactly the five Snowflake columns.
 
 **Verify:** `npm test -w @assetpulse/server && npm run typecheck`
@@ -654,3 +654,14 @@ window plus a phone. The whole loop works.
   - Bot wait clock counts only no-tech time: any tick with `hasTech()` true restarts it.
   - `positions` lists all 14 assets every tick, rounded to 0.1. 2.2's coalescer keeps the latest
     per asset. Positions share the one RNG with events (still deterministic per seed).
+- 2026-09-27 — 1.5 done, `922bef7` [1 session · ~7 trips · M holds]. 12 new tests green (36 server).
+  - `new EventLog({ capacity?, now? })`: `append(WorldEvent)` stamps `v`/`ts`/`seq` and returns
+    the wire-ready `SequencedEvent`; `log.seq` is the hello/resync seq. `since(n)` → `[]` at the
+    head, `null` if `n` was evicted OR `n > log.seq` (client ahead after a restart → resync).
+  - `CommandCache` stores the full `Ack` frame (`Extract<ServerFrame,{type:'ack'}>`); `get`
+    refreshes recency.
+  - `HistorySink(dir?)`: `record(hospitalId, event)` is sync; `await sink.flush()` on shutdown.
+    Default dir `server/data/history` resolved from `import.meta.url`. File date = UTC of `EVENT_TS`.
+    `PAYLOAD` excludes `v`, `ts`, `seq`, `type`.
+  - `ServiceNowMock.submit(hospitalId, order)`: POST when `open`, PATCH `?number=` otherwise;
+    `opened_at` in glide format, plus `u_hospital_id`. 2.1 wires both adapters to `work_order`.
