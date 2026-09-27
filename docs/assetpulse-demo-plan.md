@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 16 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 16 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -48,7 +48,7 @@ The WebSocket depth sits in the protocol itself:
 
 Work one substep per fresh session. You can run several back-to-back while projected peak
 context stays under ~170k. Each executing session reads only three things:
-- **the ⛔ section** (`this doc:159-193`)
+- **the ⛔ section** (`this doc:159-196`)
 - **its own substep**
 - **the Ledger tail**
 
@@ -190,6 +190,10 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
   user. Never script around the missing CLI.
 - **The JD PDF contains the recruiter's contact details.** Never copy it into the repo. Cite only
   the stack and role facts in docs.
+- **The original UI is the design contract (from 4.4 on).** `archive/trimedx_clinical_asset_telemetry_bundle.html`
+  (its simulator section only) is how the console must read: one top-to-bottom story, readable at
+  a glance. Every visible element must serve that story or live inside the WebSocket drawer. Do
+  not re-add the floor map, lifecycle states, legend, surge, or a QR card.
 
 ## Phase 1 — Contract + pure world model (no sockets)
 
@@ -496,6 +500,87 @@ accept at once, and exactly one wins.
 app, and `grep -rn TechFallback web/src` is empty.
 **Commit:** `feat: serve RN tech app at /tech`
 
+## Phase 4b — Back to the original story (added 2026-09-27, user decision)
+
+The finished console buried the WebSocket proof under a floor map, five lifecycle states, a
+random simulator, and four side panels (screenshots: `ARTICLES/assetpulse-ui-tour.html`). The
+user's call: **use the original's 4-panel layout and keep the real WebSocket stack underneath**.
+The Expo app stays as an optional extra. The Gemini page's fatal flaw was a fake socket, not its
+UI, so this phase keeps its UI and drops its fakery.
+
+The target story, in order: Clean Utility shelf (PAR 5 / min 2) → drag pumps into 4 patient
+rooms (or back) → at ≤ 2 on the shelf the server raises a work order → the in-page **Tech
+pager** lights up → Accept → **Complete restock (+3)** → the shelf refills and the badge goes
+green. Below all of that is the WebSocket drawer.
+
+### ☐ 4.4 · L · ~1.5h — Shrink the world to the original model
+
+**Budget:** files 6 · new 0 (+0 test) · trips ≈ 20
+**Read:** `packages/protocol/src/floor.ts`, `packages/protocol/src/constants.ts`,
+`server/src/world/world.ts`, `server/src/world/simulator.ts` (skim).
+
+- [ ] `floor.ts`: zones = `CLEAN-UTIL` + `ICU-301`, `ICU-302`, `WARD-303`, `WARD-304`. PAR =
+  `{ min: 2, max: 5 }`. Statuses = `CLEAN`, `IN_USE`. Seed: 5 clean pumps on the shelf. The
+  `rect`s can stay for the position stream, but the UI no longer reads them.
+- [ ] World: `move_asset` shelf → room sets `IN_USE`, room → shelf sets `CLEAN`, and room →
+  room is allowed. Breach at `clean ≤ min` raises one work order (the one-per-zone guard stays).
+  `deliver_wo` adds **3** new clean pumps to the shelf (next free `IVP-n`) and emits `CLEARED`
+  once `clean > min`.
+- [ ] Simulator: delete the room events, the soiled/reprocessing timers, the demo bot, and the
+  `surge` command. Keep the position jitter stream, because it exercises the coalescing and
+  backpressure work and appears in the drawer. Only a person moves pumps between zones.
+- [ ] The additive-only trap doesn't apply here: nothing is deployed, so no old client can
+  replay these frames. Say so in the commit body.
+- [ ] Update the server and protocol unit tests to the new model, and delete tests for removed
+  behavior.
+
+**Verify:** `npm run typecheck && npm run lint && npm test`. Then
+`grep -rn "SOILED\|REPROCESSING\|SPD\|surge" packages server/src` returns 0 hits.
+**Commit:** `refactor: shrink world to shelf + 4 rooms + restock`
+
+### ☐ 4.5 · L · ~1.5h — Console as the original 4-panel stack — [opus]
+
+**Budget:** files 6 · new 3 (+0 test) · trips ≈ 22
+**Read:** ⛔ "original UI" trap. In the archive file, only the `#interactive-simulator`
+section. Also `web/src/App.tsx`, `web/src/store.ts`, and `ux-decisions` index.
+
+- [ ] One column, top to bottom:
+  1. **Clean Utility:** pump pills on the shelf, plus a badge (`✓ Buffer OK (5/5)` or
+     `⚠ Below PAR (2/5)`).
+  2. **Patient rooms:** a 2×2 grid of drop zones, where pills drag in and back out.
+  3. **Tech pager:** a full-width bar. `Standby`, then `New order` with **Accept**, then
+     **Complete restock (+3)**, then back to `Standby`.
+  4. **Live WebSocket drawer:** collapsed, and its header shows the measured RTT and frame
+     count.
+- [ ] The pager is a **real second client**: its own `@assetpulse/client` socket as `tech-web`,
+  not a call into the console's store. The pager has one small line: "Also on your phone →"
+  linking to `/tech?h=…`.
+- [ ] Move **Drop connection 10 s** (the old Kill network) and the positions filter into the
+  drawer. Keep the replay toast.
+- [ ] Delete `FloorMap`, `positions.ts`, `ParGauge`, `AlertRail`, `TechQr`, `drop.ts`, the legend,
+  the theme toggle (follow `prefers-color-scheme`), and the hospital ID in the header.
+- [ ] Mobile: change the order card's action copy to "Complete restock (+3)". Nothing else.
+
+**Verify:** `npm run build && npm run typecheck && npm run lint && npm test`, then manually on
+the built server: drag 3 pumps out, the pager lights up, Accept, Restock, and the badge goes
+green. The drawer shows real frames and the RTT.
+**Commit:** `feat(web): original 4-panel console over the real socket`
+
+### ☐ 4.6 · M · ~45m — Re-point the e2e and refresh the tour
+
+**Budget:** files 2 · new 0 (+0 test) · trips ≈ 12
+**Read:** `e2e/loop.spec.ts`.
+
+- [ ] Rewrite the spec: drag 3 pills to rooms, then the badge reads Below PAR. The pager and the
+  `/tech` page (a second context) both show the order. Accept in the pager, then the phone card
+  shows it taken. Restock, and the badge reads Buffer OK. Drop the connection, and the replay
+  toast appears. The drag-staging helpers go away.
+- [ ] Re-capture the screenshots in `ARTICLES/assetpulse-ui-tour.html` (gitignored,
+  local only).
+
+**Verify:** `npm run build && npx playwright test` passes 5 runs in a row.
+**Commit:** `test(e2e): original-story loop`
+
 ## Phase 5 — Ship
 
 ### ☑ 5.1 · M · ~45m — One Playwright e2e over the whole loop
@@ -525,7 +610,7 @@ app, and `grep -rn TechFallback web/src` is empty.
 - [ ] Trigger it once via `workflow_dispatch` on the plan branch.
 
 **Verify:** `curl -s https://<app>.azurewebsites.net/healthz` returns `ok:true`, then
-`npx wscat -c "wss://<app>.azurewebsites.net/ws?h=probe"` receives `hello`. Record the URL in
+`npx wscat -c "wss://<app>.azurewebsites.net/ws?h=probe001"` receives `hello`. Record the URL in
 the Ledger.
 **Commit:** `ci: azure app service deploy`
 
@@ -570,6 +655,7 @@ renders on GitHub (check after push).
 **Budget:** files 0 · new 0 (+0 test) · trips ≈ 8
 **Read:** none.
 
+- [ ] Drop `plan/assetpulse` from `deploy.yml`'s push branches (5.2 temp trigger), commit.
 - [ ] `git switch main && git merge --no-ff plan/assetpulse`, then push. Deploy runs from `main`.
 - [ ] `gh repo edit --visibility public --accept-visibility-change-consequences`, then set the
   description, topics (`websocket rtls react-native azure healthcare`), and homepage = live URL.
@@ -878,3 +964,17 @@ window plus a phone. The whole loop works.
   - Drag gotchas: a pump that just changed zones glides ~1.5 s, so grab only when it moves less
     than one dot width per 200 ms (idle jitter is ±6 units/tick, so a "still" check never
     passes). Retry misses via `toPass`.
+- 2026-09-27 — **Re-plan: Phase 4b inserted before 5.2** (user decision, no code). 5.2 paused
+  mid-flight.
+  - Why: the finished console (floor map, 5 lifecycle states, random sim, 4 side panels) read as
+    too busy for the demo's one job, which is proving WebSockets on the manager's stack. The
+    user chose the original Gemini page's 4-panel layout over the real socket stack, with Expo
+    kept as an optional extra. New ⛔ trap: "the original UI is the design contract."
+  - 5.2 state: `deploy.yml` drafted and locally verified. The trimmed bundle (7 prod packages,
+    `npm install --install-links`, no symlinks) served `/healthz`, `/`, `/tech/`, and a ws
+    `hello`. It is stashed as `5.2 deploy.yml draft` (`git stash list`). Restore it with
+    `git stash pop` when 5.2 resumes. It triggers on push to `main` plus `plan/assetpulse`
+    (temporary, because `workflow_dispatch` needs the file on `main`). 5.5 now drops the branch.
+    The portal steps haven't started.
+  - Plan fix: 5.2 Verify used `h=probe` (5 chars), which fails `HOSPITAL_ID_PATTERN`
+    (`^[a-z0-9]{8}$`), so the socket just closes. It now reads `probe001`.
