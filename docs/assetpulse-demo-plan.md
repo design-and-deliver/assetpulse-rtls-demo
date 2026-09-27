@@ -401,20 +401,20 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/client -w @assetpulse/protocol && npm run typecheck`
 **Commit:** `feat(client): resilient ws client with resume + acks`
 
-### ☐ 3.2 · L · ~1.5h — Floor map UI — [opus]
+### ☑ 3.2 · L · ~1.5h — Floor map UI — [opus]
 
 **Budget:** files 2 · new 4 (+0 test) · trips ≈ 20
 **Read:** `packages/protocol/src/floor.ts`; `ux-decisions` skill index plus any file on alerts,
 color, or dark mode.
 
-- [ ] `web/` Vite React-TS app (`@assetpulse/web`) with CSS Modules, tokens in `src/theme.css`,
+- [x] `web/` Vite React-TS app (`@assetpulse/web`) with CSS Modules, tokens in `src/theme.css`,
   and light/dark via `prefers-color-scheme` plus a toggle.
-- [ ] `FloorMap.tsx`: SVG zones from `floor.ts`, asset dots colored by status (with a
+- [x] `FloorMap.tsx`: SVG zones from `floor.ts`, asset dots colored by status (with a
   shape/letter too, so status isn't hue-only), and positions interpolated between 4 Hz frames
   with `requestAnimationFrame`.
-- [ ] `ParGauge` on `CLEAN-UTIL` (clean / min / max), an alert rail listing open work orders,
+- [x] `ParGauge` on `CLEAN-UTIL` (clean / min / max), an alert rail listing open work orders,
   and a connection pill (`live · 23 ms` from `stats.rttMs`, `reconnecting…`, `resyncing…`).
-- [ ] Calm palette. Only a PAR breach uses the alert color, with no infinite pulsing animations.
+- [x] Calm palette. Only a PAR breach uses the alert color, with no infinite pulsing animations.
 
 **Verify:** `npm run build -w @assetpulse/web && npm run typecheck && npm run lint`, then a manual
 check with `npm run dev`: the map animates and the pill shows a measured RTT.
@@ -733,3 +733,27 @@ window plus a phone. The whole loop works.
   - Gotcha: client tests import `@assetpulse/protocol` via its `dist` — run
     `npm run build -w @assetpulse/protocol` after a protocol change or new constants read as
     `undefined`. Fake timers need integer delays, so the jitter-bound test uses r=0.996, not 0.999.
+- 2026-09-27 — 3.2 done, `802bc09` [1 session · ~20 trips · L holds]. 94 tests green; web build,
+  typecheck, lint clean.
+  - `web/` = `@assetpulse/web` (React 19.3, Vite 8, `@vitejs/plugin-react` 6). `vite.config.ts`
+    proxies `/ws` → `ws://localhost:8787`; root `dev` now runs both halves. `web/tsconfig.json`
+    is a `tsc -b` reference (emitDeclarationOnly into `node_modules/.cache/tsc`);
+    `web/vite.config.ts` is typechecked via `tsconfig.tools.json`.
+  - One client per page, created in `main.tsx` outside React (StrictMode can't double-open).
+    `store.ts` folds frames into an immutable snapshot for `useSyncExternalStore`; positions go
+    to `PositionTracker` (tween from drawn point to reported point over `POSITION_FLUSH_MS`), and
+    `FloorMap` writes `transform` on each dot `<g>` in a rAF loop, so motion never re-renders.
+  - `par_alert` fires only on BREACH/CLEARED, so its `clean` goes stale: the gauge counts CLEAN
+    assets live (same rule as the server's `cleanCount`); the breach color follows `par.state`.
+  - Pill: `live · N ms` from `stats.rttMs` (read on each ack), `reconnecting…`, `offline` for
+    `killed`, and `resyncing…` from a reconnect's `open` until the first ack. The replay is
+    written before the ping, so that ack marks the end of it.
+  - Status = hue + letter (C/U/S/P/R) + legend. Breach = `--alert` stroke/fill on CLEAN-UTIL with a
+    2-iteration pulse; reduced-motion kills it. Theme: OS default, toggle persisted (try/catch).
+  - Verify deviation: ran the built server (`node server/dist/index.js`, serving `web/dist`)
+    instead of `npm run dev`, checked in Chrome: `?h=` minted, `live · 4 ms`, 14 dots, events
+    changed status within 12 s, dark mode OK, no console errors. Gotcha: the automation tab is
+    `visibilityState: hidden`, so rAF is paused there and JS-sampled transforms don't move;
+    screenshots (which paint) showed the dots moving.
+  - Not seen live: a PAR breach (the sim never dropped below min in the window). 3.3's Surge
+    button makes it easy to trigger and eyeball.
