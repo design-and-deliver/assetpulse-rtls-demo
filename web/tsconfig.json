@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "rootDir": "src",
+    "emitDeclarationOnly": true,
+    "outDir": "node_modules/.cache/tsc"
+  },
+  "include": ["src"],
+  "references": [{ "path": "../packages/protocol" }, { "path": "../packages/client" }]
+}
