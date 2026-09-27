@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 2 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 3 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -249,18 +249,18 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/protocol && npm run typecheck`
 **Commit:** `feat(protocol): frame schemas, floor model, constants`
 
-### ☐ 1.3 · M · ~1h — World model: lifecycle, PAR, work orders (pure)
+### ☑ 1.3 · M · ~1h — World model: lifecycle, PAR, work orders (pure)
 
 **Budget:** files 2 · new 2 (+1 test) · trips ≈ 14
 **Read:** `packages/protocol/src/{floor,frames,constants}.ts` (whole, each < 200 lines).
 
-- [ ] `server/` workspace skeleton (`package.json` for `@assetpulse/server`, deps: `@assetpulse/protocol`, `ws`).
-- [ ] `server/src/world/world.ts`: `class World` holding assets, open orders, `seq`, and `woCounter`.
+- [x] `server/` workspace skeleton (`package.json` for `@assetpulse/server`, deps: `@assetpulse/protocol`, `ws`).
+- [x] `server/src/world/world.ts`: `class World` holding assets, open orders, `seq`, and `woCounter`.
   Methods return **event lists** and never emit themselves: `moveAsset`, `surge`, `reset`,
   `acceptOrder(orderNumber, techId)`, `deliverOrder(orderNumber)`, and `evaluatePar()`.
   Transition table per Decisions. Violations throw a typed `WorldError(code)` with codes
   `INVALID_TRANSITION`, `NOT_FOUND`, `ALREADY_ASSIGNED`, `NOT_ASSIGNED`, `NOTHING_READY`.
-- [ ] `server/test/world.test.ts`, covering:
+- [x] `server/test/world.test.ts`, covering:
   - the lifecycle happy path
   - an illegal transition
   - a PAR breach creating exactly one order
@@ -631,3 +631,17 @@ window plus a phone. The whole loop works.
     if type drift in tests bites.
   - Still open from 1.1: `main` isn't pushed (gh `workflow` scope).
 - 2026-09-27 — 1.1 BLOCKED resolved: gh token now has `workflow`. `main` pushed (`fe65c82`), GitHub default branch set to `main`, repo still PRIVATE. Next: 1.3.
+- 2026-09-27 — 1.3 done, `3f5dd10` [1 session · ~12 trips · M holds]. 13 server tests green (40 total).
+  - **`seq` is NOT held by the World** (deviation from the 1.3 bullet). Methods return
+    `WorldEvent` = a `SequencedEvent` minus `v`/`ts`/`seq`; 1.5's event log stamps `seq` on
+    append, so there is exactly one counter. `woCounter` stays in the World.
+  - `moveAsset(id, zone)` is the single lifecycle step: legal iff the zone's kind matches the
+    NEXT status's home. So REPROCESSING→READY is `moveAsset(id, 'SPD')` and SOILED→REPROCESSING
+    is also `moveAsset(id, 'SPD')` — 1.4's timers use those. READY has no move (deliver only).
+  - Only `evaluatePar()` opens orders (BREACH + `work_order`); moves/surge never do. 1.4's tick
+    must call it after its own events. `deliverOrder` emits CLEARED itself.
+  - Closed orders leave the map → a closed number is `NOT_FOUND`. `reset()` closes active
+    orders but keeps `woCounter` running (numbers never reused). `World({ now })` injects the clock.
+  - Server workspace: `server/vitest.config.ts` sets `resolve.conditions` + `ssr.resolve.conditions`
+    to `['source']` — verified: tests pass with protocol `dist/` removed. Web (3.x) needs the same.
+    `tsconfig.tools.json` now also covers `server/vitest.config.ts`.
