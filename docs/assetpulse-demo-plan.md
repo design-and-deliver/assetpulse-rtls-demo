@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 6 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 7 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -338,21 +338,21 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/server && npm run typecheck && npm run lint`
 **Commit:** `feat(server): ws hub with topics, acks, idempotent commands`
 
-### ☐ 2.2 · L · ~1.5h — Delivery quality: coalescing, backpressure, heartbeat, resume
+### ☑ 2.2 · L · ~1.5h — Delivery quality: coalescing, backpressure, heartbeat, resume
 
 **Budget:** files 3 · new 1 (+1 test) · trips ≈ 22
 **Read:** `server/src/hub/connection.ts`, `server/src/hub/world-registry.ts` (whole).
 
-- [ ] Coalescing: the world accumulates the latest position per asset, and every 250 ms it sends
+- [x] Coalescing: the world accumulates the latest position per asset, and every 250 ms it sends
   one `positions` frame per `floor` subscriber.
-- [ ] Backpressure: skip that client's flush when `bufferedAmount > 512KB`, and count skips in
+- [x] Backpressure: skip that client's flush when `bufferedAmount > 512KB`, and count skips in
   `/healthz`. Events are always sent.
-- [ ] Heartbeat: `ws.ping()` every 15 s. If no `pong` arrived since the last ping, call
+- [x] Heartbeat: `ws.ping()` every 15 s. If no `pong` arrived since the last ping, call
   `terminate()`. The server only reaps. The client measures its own RTT (3.1), so no
   server-side RTT field exists.
-- [ ] Resume: a `resume{lastSeq}` replays `eventLog.since(lastSeq)` filtered by topics, else
+- [x] Resume: a `resume{lastSeq}` replays `eventLog.since(lastSeq)` filtered by topics, else
   sends `resync{snapshot, seq}`.
-- [ ] `server/test/delivery.integration.test.ts`, covering:
+- [x] `server/test/delivery.integration.test.ts`, covering:
   - ≤ 5 `positions` frames per second per client
   - a slow client (pause the socket's underlying stream) gets skips but receives every event
   - resume after missing 20 events gets exactly those 20, in order
@@ -679,3 +679,24 @@ window plus a phone. The whole loop works.
   - The command cache is per WORLD, so cmdIds must be world-unique (3.1: `crypto.randomUUID()`).
     The race test first failed on per-client cmdId counters colliding.
   - Bad `h` → close 4400; world cap with none idle → 4503. Seeds = FNV-1a of the hospital id.
+- 2026-09-27 — 2.2 done, `d8ac8c0` [1 session · ~12 trips · L holds]. 6 new tests green (53 server).
+  - Coalescing: `tick()` fills `pendingPositions` (Map by assetId); `flushPositions()` runs on
+    its own `flushMs` timer (default `POSITION_FLUSH_MS`) and sends one shared frame per
+    `floor` subscriber. Events still go straight through `publish` — never via the flush.
+  - Backpressure: `Subscriber` gained `bufferedAmount` (Connection proxies `ws.bufferedAmount`).
+    Skips count in `registry.stats.positionSkips` (server-wide, survives world eviction) →
+    `/healthz` now returns `{ok, worlds, sockets, positionSkips}`.
+  - Heartbeat: `hub/heartbeat.ts` `startHeartbeat(() => wss.clients, heartbeatMs?)` — WeakSet
+    of sockets awaiting a pong; still awaiting at the next beat → `terminate()`. Timer unref'd;
+    `app.close()` stops it. `AppOptions.heartbeatMs` added.
+  - Resume: `WorldHub.replay(lastSeq, topics)` → missed events filtered by `EVENT_TOPICS`, or a
+    single `resync{seq, snapshot}` when `log.since` returns null. Sent synchronously in
+    `Connection.handle`, so live events cannot interleave. Topics apply AT resume time — 3.1's
+    client must `subscribe` before `resume`.
+  - New options: `RegistryOptions.flushMs`, `.eventLogSize` (tests use 5 to force eviction).
+  - Deviation: the slow-client test attaches a fake `Subscriber` with a high `bufferedAmount`
+    to the real app's hub instead of pausing a real socket stream — a paused stream only shows
+    `bufferedAmount` after MBs of kernel buffer fill, which made it slow and nondeterministic.
+  - `TestClient` / `delay` / `Frame` moved to `server/test/support/test-client.ts`, shared by
+    both integration files. Tests needing an exact event count pass `tickMs: 3_600_000`
+    (frozen sim); surge + reset each emit exactly 4 `asset_changed`.
