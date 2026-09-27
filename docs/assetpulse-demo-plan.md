@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 8 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 9 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -377,14 +377,14 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 
 ## Phase 3 — Web ops console
 
-### ☐ 3.1 · M · ~1h — `packages/client`: resilient socket shared by web + mobile
+### ☑ 3.1 · M · ~1h — `packages/client`: resilient socket shared by web + mobile
 
 **Budget:** files 1 · new 3 (+1 test) · trips ≈ 14
 **Read:** `packages/protocol/src/{frames,constants}.ts`.
 
-- [ ] `@assetpulse/client`, framework-free, using only the global `WebSocket` (it must run in
+- [x] `@assetpulse/client`, framework-free, using only the global `WebSocket` (it must run in
   the browser and in React Native).
-- [ ] `createClient({url, hospitalId, topics})` → `{ on(type, fn), send(command) →
+- [x] `createClient({url, hospitalId, topics})` → `{ on(type, fn), send(command) →
   Promise<ack>, state$, stats, kill(ms) }`. It:
   - auto-reconnects with backoff + jitter (Decisions)
   - sends `resume{lastSeq}` on reconnect
@@ -393,9 +393,9 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
   - exposes `stats.framesIn` and `stats.lastFrameRaw[]` (last 200 raw strings for the wire
     drawer)
   - `kill(ms)` closes the socket and blocks reconnect for `ms`
-- [ ] Add `"ping"` to the command names in protocol (a protocol change first, with a test,
+- [x] Add `"ping"` to the command names in protocol (a protocol change first, with a test,
   per ⛔).
-- [ ] Tests with a fake WebSocket: the backoff sequence stays in bounds, a resume is sent with
+- [x] Tests with a fake WebSocket: the backoff sequence stays in bounds, a resume is sent with
   the right seq, pending acks are rejected on close, and kill blocks reconnect.
 
 **Verify:** `npm test -w @assetpulse/client -w @assetpulse/protocol && npm run typecheck`
@@ -714,3 +714,22 @@ window plus a phone. The whole loop works.
     2.2). Ran a self-terminating script instead against `server/dist/app.js` on :8787:
     `/healthz` → `{"ok":true,…}`, and with temp dirs every SPA route above returned the
     right index.
+- 2026-09-27 — 3.1 done, `c6086d8` [1 session · ~12 trips · M holds]. 94 tests green (13 client).
+  - Protocol: `ping` added to `COMMAND_NAMES` (args `{}`) + round-trip test; `CLIENT_PING_MS`
+    (5 s) and `WIRE_LOG_SIZE` (200) added to constants. Server `apply` returns `[]` for ping, and
+    `WorldHub.execute` bypasses the command LRU for pings so they never evict real cmdIds.
+  - `@assetpulse/client` (`packages/client/src/client.ts`): `createClient({url, hospitalId,
+    topics, WebSocket?, random?, now?, pingMs?})` appends `?h=`. Needs only a `WebSocketLike`
+    (browser / RN / Node 22 global); tsconfig adds `lib: DOM` for timers.
+  - API deviations from the substep text: `stats.lastFrameRaw` is `{dir, ts, raw}[]` (3.3's wire
+    drawer needs direction + time); `state$` is a tiny `{value, subscribe}` observable with states
+    `connecting|open|reconnecting|killed|closed`; `send` resolves with the ack (check `ok`) and
+    rejects `ClientError('DISCONNECTED')` if not open or on drop; `close()` added; stats also
+    carry `framesOut`, `reconnects`, `lastSeq`.
+  - Seq rules: `hello` sets `lastSeq` only on first connect (a reconnect hello must not skip the
+    replay); `resync` sets it unconditionally (may go backwards when the world was replaced);
+    sequenced events with `seq <= lastSeq` are dropped, not emitted. On open: `subscribe`, then
+    `resume{lastSeq}` if any, then a ping.
+  - Gotcha: client tests import `@assetpulse/protocol` via its `dist` — run
+    `npm run build -w @assetpulse/protocol` after a protocol change or new constants read as
+    `undefined`. Fake timers need integer delays, so the jitter-bound test uses r=0.996, not 0.999.
