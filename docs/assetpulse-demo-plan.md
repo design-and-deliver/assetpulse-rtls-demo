@@ -630,3 +630,4 @@ window plus a phone. The whole loop works.
   - Test files are not in any tsconfig, so tsc doesn't typecheck them (vitest runs them). Revisit
     if type drift in tests bites.
   - Still open from 1.1: `main` isn't pushed (gh `workflow` scope).
+- 2026-09-27 — 1.1 BLOCKED resolved: gh token now has `workflow`. `main` pushed (`fe65c82`), GitHub default branch set to `main`, repo still PRIVATE. Next: 1.3.
