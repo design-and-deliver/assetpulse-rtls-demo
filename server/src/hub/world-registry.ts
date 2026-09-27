@@ -1,6 +1,9 @@
 import {
+  BACKPRESSURE_BYTES,
+  EVENT_LOG_SIZE,
   FrameType,
   MAX_WORLDS,
+  POSITION_FLUSH_MS,
   PROTOCOL_VERSION,
   SIM_TICK_MS,
   WORLD_IDLE_MS,
@@ -16,10 +19,18 @@ import { EventLog } from '../world/event-log.js';
 import { Simulator, type Position } from '../world/simulator.js';
 import { World, WorldError, type WorldEvent } from '../world/world.js';
 
-/** What a hub needs from a socket: its subscriptions and a way to send it a frame. */
+/** What a hub needs from a socket: its subscriptions, its send queue, and a way to send. */
 export interface Subscriber {
   readonly topics: ReadonlySet<Topic>;
+  /** Bytes queued but not yet written to the network (`ws.bufferedAmount`). */
+  readonly bufferedAmount: number;
   send(frame: ServerFrame): void;
+}
+
+/** Server-wide delivery counters, shared by every hub and reported on `/healthz`. */
+export interface DeliveryStats {
+  /** Position flushes skipped for a client whose send queue was over `BACKPRESSURE_BYTES`. */
+  positionSkips: number;
 }
 
 /** Which topics each sequenced event fans out to. Positions go to `floor`. */
@@ -34,6 +45,9 @@ export interface HubDeps {
   serviceNow: ServiceNowMock;
   now: () => number;
   tickMs: number;
+  flushMs: number;
+  eventLogSize: number;
+  stats: DeliveryStats;
   seed: number;
 }
 
@@ -64,7 +78,10 @@ export class WorldHub {
   private readonly cache = new CommandCache();
   private readonly simulator: Simulator;
   private readonly subscribers = new Set<Subscriber>();
+  /** Latest position per asset since the last flush — ephemeral, never sequenced. */
+  private readonly pendingPositions = new Map<string, Position>();
   private timer: NodeJS.Timeout | null = null;
+  private flushTimer: NodeJS.Timeout | null = null;
   /** When the last socket left; null while any socket is attached. */
   idleSince: number | null;
 
@@ -73,7 +90,7 @@ export class WorldHub {
     private readonly deps: HubDeps,
   ) {
     this.world = new World({ now: deps.now });
-    this.log = new EventLog({ now: deps.now });
+    this.log = new EventLog({ capacity: deps.eventLogSize, now: deps.now });
     this.simulator = new Simulator(this.world, {
       seed: deps.seed,
       hasTech: () => this.hasTopic('role:tech'),
@@ -87,11 +104,14 @@ export class WorldHub {
 
   start(): void {
     this.timer ??= setInterval(() => this.tick(), this.deps.tickMs);
+    this.flushTimer ??= setInterval(() => this.flushPositions(), this.deps.flushMs);
   }
 
   stop(): void {
     if (this.timer) clearInterval(this.timer);
+    if (this.flushTimer) clearInterval(this.flushTimer);
     this.timer = null;
+    this.flushTimer = null;
   }
 
   attach(subscriber: Subscriber): void {
@@ -115,6 +135,26 @@ export class WorldHub {
     };
   }
 
+  /**
+   * What a client resuming from `lastSeq` should receive: the missed events it is subscribed
+   * to, in order — or a `resync` snapshot when they have been evicted (or it is ahead of us).
+   */
+  replay(lastSeq: number, topics: ReadonlySet<Topic>): ServerFrame[] {
+    const missed = this.log.since(lastSeq);
+    if (!missed) {
+      return [
+        {
+          v: PROTOCOL_VERSION,
+          ts: this.deps.now(),
+          type: FrameType.resync,
+          seq: this.log.seq,
+          snapshot: this.world.snapshot(),
+        },
+      ];
+    }
+    return missed.filter((event) => EVENT_TOPICS[event.type].some((t) => topics.has(t)));
+  }
+
   /** Runs a command at most once per `cmdId`; a retry gets the original ack back. */
   execute(cmdId: string, command: Command): Ack {
     const cached = this.cache.get(cmdId);
@@ -127,7 +167,31 @@ export class WorldHub {
   tick(): void {
     const { events, positions } = this.simulator.tick(this.deps.tickMs);
     this.publish(events);
-    this.sendPositions(positions);
+    for (const position of positions) this.pendingPositions.set(position.assetId, position);
+  }
+
+  /**
+   * Sends the coalesced positions as one frame per `floor` subscriber. A client whose send
+   * queue is backed up skips this flush (the next one carries newer positions anyway);
+   * events never take this path, so they are never dropped.
+   */
+  flushPositions(): void {
+    if (this.pendingPositions.size === 0) return;
+    const frame: ServerFrame = {
+      v: PROTOCOL_VERSION,
+      ts: this.deps.now(),
+      type: FrameType.positions,
+      batch: [...this.pendingPositions.values()],
+    };
+    this.pendingPositions.clear();
+    for (const subscriber of this.subscribers) {
+      if (!subscriber.topics.has('floor')) continue;
+      if (subscriber.bufferedAmount > BACKPRESSURE_BYTES) {
+        this.deps.stats.positionSkips++;
+        continue;
+      }
+      subscriber.send(frame);
+    }
   }
 
   private run(cmdId: string, command: Command): Ack {
@@ -158,17 +222,6 @@ export class WorldHub {
     }
   }
 
-  private sendPositions(batch: Position[]): void {
-    if (batch.length === 0) return;
-    const frame: ServerFrame = {
-      v: PROTOCOL_VERSION,
-      ts: this.deps.now(),
-      type: FrameType.positions,
-      batch,
-    };
-    this.broadcast(['floor'], frame);
-  }
-
   private broadcast(topics: readonly Topic[], frame: ServerFrame): void {
     for (const subscriber of this.subscribers) {
       if (topics.some((t) => subscriber.topics.has(t))) subscriber.send(frame);
@@ -187,6 +240,8 @@ export interface RegistryOptions {
   maxWorlds?: number;
   idleMs?: number;
   tickMs?: number;
+  flushMs?: number;
+  eventLogSize?: number;
   /** How often idle worlds are swept. */
   sweepMs?: number;
   /** Per-hospital simulator seed; defaults to a hash of the id, so a sandbox replays. */
@@ -212,6 +267,7 @@ export class WorldRegistry {
   private readonly idleMs: number;
   private readonly seedFor: (hospitalId: string) => number;
   private readonly sweeper: NodeJS.Timeout;
+  readonly stats: DeliveryStats = { positionSkips: 0 };
 
   constructor(options: RegistryOptions) {
     this.deps = {
@@ -219,6 +275,9 @@ export class WorldRegistry {
       serviceNow: options.serviceNow,
       now: options.now ?? Date.now,
       tickMs: options.tickMs ?? SIM_TICK_MS,
+      flushMs: options.flushMs ?? POSITION_FLUSH_MS,
+      eventLogSize: options.eventLogSize ?? EVENT_LOG_SIZE,
+      stats: this.stats,
     };
     this.maxWorlds = options.maxWorlds ?? MAX_WORLDS;
     this.idleMs = options.idleMs ?? WORLD_IDLE_MS;

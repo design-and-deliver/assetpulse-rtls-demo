@@ -34,6 +34,10 @@ export class Connection implements Subscriber {
     return this.hub.hospitalId;
   }
 
+  get bufferedAmount(): number {
+    return this.ws.bufferedAmount;
+  }
+
   send(frame: ServerFrame): void {
     if ('seq' in frame) this.lastSentSeq = frame.seq;
     this.ws.send(JSON.stringify(frame));
@@ -62,8 +66,8 @@ export class Connection implements Subscriber {
         this.send(this.hub.execute(frame.cmdId, frame));
         return;
       case FrameType.resume:
-        // Replay from the event log arrives with delivery quality (2.2); until then a resuming
-        // client keeps its hello snapshot and live events.
+        // Replayed synchronously, so no live event can interleave with the missed ones.
+        for (const replayed of this.hub.replay(frame.lastSeq, this.topics)) this.send(replayed);
         return;
     }
   }

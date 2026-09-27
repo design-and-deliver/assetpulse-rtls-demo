@@ -5,10 +5,12 @@ import { WebSocketServer } from 'ws';
 import { HistorySink } from './adapters/history-sink.js';
 import { ServiceNowMock } from './adapters/servicenow-mock.js';
 import { Connection } from './hub/connection.js';
+import { startHeartbeat } from './hub/heartbeat.js';
 import { WorldRegistry, type RegistryOptions } from './hub/world-registry.js';
 
 export interface AppOptions extends Partial<RegistryOptions> {
   port?: number;
+  heartbeatMs?: number;
 }
 
 export interface App {
@@ -36,12 +38,20 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, worlds: registry.size, sockets: wss.clients.size }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          worlds: registry.size,
+          sockets: wss.clients.size,
+          positionSkips: registry.stats.positionSkips,
+        }),
+      );
       return;
     }
     res.writeHead(404).end();
   });
   const wss = new WebSocketServer({ server, path: '/ws' });
+  const stopHeartbeat = startHeartbeat(() => wss.clients, options.heartbeatMs);
 
   wss.on('connection', (ws, req) => {
     const hospitalId = hospitalIdOf(req);
@@ -58,6 +68,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     registry,
     sink,
     async close() {
+      stopHeartbeat();
       registry.close();
       for (const ws of wss.clients) ws.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
