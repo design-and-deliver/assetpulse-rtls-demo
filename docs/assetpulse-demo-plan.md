@@ -273,18 +273,18 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/server && npm run typecheck && npm run lint`
 **Commit:** `feat(server): pure world model with PAR + work orders`
 
-### ☐ 1.4 · M · ~45m — Seeded simulator: timers, random events, positions
+### ☑ 1.4 · M · ~45m — Seeded simulator: timers, random events, positions
 
 **Budget:** files 2 · new 2 (+1 test) · trips ≈ 12
 **Read:** `server/src/world/world.ts` (whole).
 
-- [ ] `server/src/world/rng.ts`: mulberry32 seeded RNG.
-- [ ] `server/src/world/simulator.ts`: `tick(dtMs)` advances the timers (SOILED→REPROCESSING 8 s,
+- [x] `server/src/world/rng.ts`: mulberry32 seeded RNG.
+- [x] `server/src/world/simulator.ts`: `tick(dtMs)` advances the timers (SOILED→REPROCESSING 8 s,
   REPROCESSING→READY 15 s), fires the random room event every 6–10 s, and runs the demo bot per
   Decisions (it needs a `hasTech()` callback). It returns `{events, positions}`. Positions:
   each asset jitters inside its zone rect (±6 units per tick, clamped). A zone change tweens
   over 1.5 s along a straight line through the `HALL` centroid.
-- [ ] `server/test/simulator.test.ts`: the same seed gives an identical event sequence over 600
+- [x] `server/test/simulator.test.ts`: the same seed gives an identical event sequence over 600
   ticks; timers fire at the exact tick; the bot accepts only after 45 s with `hasTech()=false`.
 
 **Verify:** `npm test -w @assetpulse/server && npm run lint`
@@ -645,3 +645,12 @@ window plus a phone. The whole loop works.
   - Server workspace: `server/vitest.config.ts` sets `resolve.conditions` + `ssr.resolve.conditions`
     to `['source']` — verified: tests pass with protocol `dist/` removed. Web (3.x) needs the same.
     `tsconfig.tools.json` now also covers `server/vitest.config.ts`.
+- 2026-09-27 — 1.4 done, `dc068d3` [1 session · ~8 trips · M holds]. 11 simulator tests green (24 server).
+  - `new Simulator(world, { seed, hasTech })`; `tick(dtMs)` → `{ events, positions }`. It reads
+    the World only via `snapshot()` (before and after each tick), so changes made by commands
+    between ticks start their timers/tweens from the tick that sees them. 2.1 needs no hooks.
+  - Tick order: timers → room event → bot → `evaluatePar()`. Bot delivers on a LATER tick than
+    it accepts (deliveries run before accepts), and only orders it accepted (`BOT_TECH_ID`).
+  - Bot wait clock counts only no-tech time: any tick with `hasTech()` true restarts it.
+  - `positions` lists all 14 assets every tick, rounded to 0.1. 2.2's coalescer keeps the latest
+    per asset. Positions share the one RNG with events (still deterministic per seed).
