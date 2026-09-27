@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 7 of 20 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 8 of 20 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -362,14 +362,14 @@ upgrade. Nominal totals are ~12h for the MVP and ~18h for everything.
 **Verify:** `npm test -w @assetpulse/server && npm run lint`
 **Commit:** `feat(server): coalescing, backpressure, heartbeat, resume`
 
-### ☐ 2.3 · S · ~20m — Static serving + dev script
+### ☑ 2.3 · S · ~20m — Static serving + dev script
 
 **Budget:** files 2 · new 0 (+0 test) · trips ≈ 6
 **Read:** `server/src/index.ts`.
 
-- [ ] Serve `web/dist` at `/` and `mobile/dist` at `/tech` (use `sirv`; SPA fallback on both),
+- [x] Serve `web/dist` at `/` and `mobile/dist` at `/tech` (use `sirv`; SPA fallback on both),
   but only if the dirs exist.
-- [ ] Root `dev` runs `server` (tsx watch) plus `web` (vite, proxying `/ws` to 8787).
+- [x] Root `dev` runs `server` (tsx watch) plus `web` (vite, proxying `/ws` to 8787).
 
 **Verify:** `npm run build -w @assetpulse/server && node server/dist/index.js` then (second shell)
 `curl -s localhost:8787/healthz` returns `{"ok":true`, then stop the server.
@@ -700,3 +700,17 @@ window plus a phone. The whole loop works.
   - `TestClient` / `delay` / `Frame` moved to `server/test/support/test-client.ts`, shared by
     both integration files. Tests needing an exact event count pass `tickMs: 3_600_000`
     (frozen sim); surge + reset each emit exactly 4 `asset_changed`.
+- 2026-09-27 — 2.3 done, `ebcc1b6` [1 session · ~8 trips · S holds]. 53 server tests green.
+  - Static hosting lives in `app.ts` (not `index.ts`, which only boots): `sirv` with
+    `single: true` per dir, each built only if the dir exists at startup. Default dirs resolve
+    `../../web/dist` and `../../mobile/dist` from `import.meta.url` (same hop from `src` and
+    `dist`); `AppOptions.webDir` / `.techDir` override them. `/tech`, `/tech/…`, `/tech?…` strip
+    the prefix; `/technology` falls through to web. Missing dir → 404, `/healthz` unaffected.
+  - Server `dev` = `tsx watch src/index.ts` (`tsx` added as a devDep). Root `dev` already ran
+    server + web via `concurrently` since 1.1 — but the `web` workspace doesn't exist yet, so
+    root `dev` fails on the web half until 3.x creates it. The vite `/ws` → 8787 proxy goes in
+    `web/vite.config.ts` when that workspace is created (3.2 or earlier).
+  - Verify deviation: a backgrounded `node server/dist/index.js` + `kill` was denied (as in
+    2.2). Ran a self-terminating script instead against `server/dist/app.js` on :8787:
+    `/healthz` → `{"ok":true,…}`, and with temp dirs every SPA route above returned the
+    right index.
