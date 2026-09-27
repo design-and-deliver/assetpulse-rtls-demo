@@ -5,8 +5,11 @@ import styles from './App.module.css';
 import { ConnectionPill } from './ConnectionPill';
 import { FloorMap } from './FloorMap';
 import { ParGauge } from './ParGauge';
-import type { ConsoleStore } from './store';
+import panels from './Panels.module.css';
+import type { ConnectionView, ConsoleStore } from './store';
 import { useTheme } from './theme';
+import { Toasts } from './Toasts';
+import { WireDrawer } from './WireDrawer';
 import { activeOrders, cleanCount } from './world';
 
 function useNow(intervalMs: number): number {
@@ -18,8 +21,57 @@ function useNow(intervalMs: number): number {
   return now;
 }
 
+const KILL_MS = 10_000;
+
+function killLabel(connection: ConnectionView, now: number): string {
+  if (connection.killedUntil === null) return 'Kill network 10 s';
+  const left = Math.max(0, Math.ceil((connection.killedUntil - now) / 1000));
+  return `Offline · back in ${left} s`;
+}
+
+function Toolbar({
+  store,
+  connection,
+  now,
+}: {
+  store: ConsoleStore;
+  connection: ConnectionView;
+  now: number;
+}) {
+  const live = connection.state === 'open';
+  return (
+    <div className={panels.toolbar}>
+      <button
+        type="button"
+        className={styles.button}
+        disabled={!live}
+        onClick={() => void store.run({ name: 'surge', args: {} }, 'Surge ICU')}
+      >
+        Surge ICU
+      </button>
+      <button
+        type="button"
+        className={styles.button}
+        disabled={!live}
+        onClick={() => void store.run({ name: 'reset', args: {} }, 'Reset')}
+      >
+        Reset
+      </button>
+      <button
+        type="button"
+        className={styles.button}
+        disabled={connection.killedUntil !== null}
+        onClick={() => store.killNetwork(KILL_MS)}
+      >
+        {killLabel(connection, now)}
+      </button>
+      <span className={panels.toolbarHint}>Drag a pump to its next zone.</span>
+    </div>
+  );
+}
+
 export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: string }) {
-  const { world, connection } = useSyncExternalStore(store.subscribe, store.getState);
+  const { world, connection, toasts } = useSyncExternalStore(store.subscribe, store.getState);
   const [theme, toggleTheme] = useTheme();
   const now = useNow(1000);
   const par = world.par;
@@ -42,11 +94,15 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
         </div>
       </header>
       <main className={styles.main}>
-        <FloorMap
-          assets={[...world.assets.values()]}
-          positions={store.positions}
-          parBreach={breach}
-        />
+        <div>
+          <Toolbar store={store} connection={connection} now={now} />
+          <FloorMap
+            assets={[...world.assets.values()]}
+            positions={store.positions}
+            parBreach={breach}
+            onMove={(assetId, toZoneId) => void store.moveAsset(assetId, toZoneId)}
+          />
+        </div>
         <aside className={styles.side}>
           {par && (
             <ParGauge clean={cleanCount(world)} min={par.min} max={par.max} breach={breach} />
@@ -54,6 +110,8 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
           <AlertRail orders={activeOrders(world)} now={now} />
         </aside>
       </main>
+      <WireDrawer stats={store.client.stats} />
+      <Toasts toasts={toasts} onDismiss={store.dismissToast} />
     </div>
   );
 }

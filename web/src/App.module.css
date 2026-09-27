@@ -66,3 +66,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button:disabled:hover {
+  background: var(--surface);
+}
