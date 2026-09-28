@@ -185,6 +185,44 @@ describe('World PAR + work orders', () => {
     expect(world.snapshot().workOrders).toEqual([]);
   });
 
+  it('clears PAR and cancels an open order when a pump returns to the shelf', () => {
+    const world = newWorld();
+    breach(world);
+    const number = orderOf(world.evaluatePar()).number;
+    world.moveAsset('IVP-103', PAR.zoneId);
+
+    const events = world.evaluatePar();
+    expect(orderOf(events)).toMatchObject({ number, state: 'closed' });
+    expect(parAlerts(events)).toEqual(['CLEARED']);
+    expect(world.snapshot().workOrders).toEqual([]);
+    expect(world.snapshot().par.state).toBe('OK');
+    expect(world.evaluatePar()).toEqual([]);
+  });
+
+  it('keeps an accepted order when the shelf recovers, and clears PAR only once', () => {
+    const world = newWorld();
+    const number = acceptedOrder(world);
+    world.moveAsset('IVP-103', PAR.zoneId);
+
+    const events = world.evaluatePar();
+    expect(events.filter((e) => e.type === FrameType.workOrder)).toEqual([]);
+    expect(parAlerts(events)).toEqual(['CLEARED']);
+    expect(world.snapshot().workOrders).toMatchObject([{ number, state: 'accepted' }]);
+    expect(parAlerts(world.deliverOrder(number))).toEqual([]);
+  });
+
+  it('re-raises BREACH without a duplicate order if the shelf drops again', () => {
+    const world = newWorld();
+    acceptedOrder(world);
+    world.moveAsset('IVP-103', PAR.zoneId);
+    world.evaluatePar();
+    world.moveAsset('IVP-103', 'WARD-303');
+
+    const events = world.evaluatePar();
+    expect(parAlerts(events)).toEqual(['BREACH']);
+    expect(events.filter((e) => e.type === FrameType.workOrder)).toEqual([]);
+  });
+
   it('numbers new pumps past the highest one on the floor', () => {
     const world = newWorld();
     world.deliverOrder(acceptedOrder(world));
