@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 16 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 17 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -513,25 +513,25 @@ rooms (or back) → at ≤ 2 on the shelf the server raises a work order → the
 pager** lights up → Accept → **Complete restock (+3)** → the shelf refills and the badge goes
 green. Below all of that is the WebSocket drawer.
 
-### ☐ 4.4 · L · ~1.5h — Shrink the world to the original model
+### ☑ 4.4 · L · ~1.5h — Shrink the world to the original model
 
 **Budget:** files 6 · new 0 (+0 test) · trips ≈ 20
 **Read:** `packages/protocol/src/floor.ts`, `packages/protocol/src/constants.ts`,
 `server/src/world/world.ts`, `server/src/world/simulator.ts` (skim).
 
-- [ ] `floor.ts`: zones = `CLEAN-UTIL` + `ICU-301`, `ICU-302`, `WARD-303`, `WARD-304`. PAR =
+- [x] `floor.ts`: zones = `CLEAN-UTIL` + `ICU-301`, `ICU-302`, `WARD-303`, `WARD-304`. PAR =
   `{ min: 2, max: 5 }`. Statuses = `CLEAN`, `IN_USE`. Seed: 5 clean pumps on the shelf. The
   `rect`s can stay for the position stream, but the UI no longer reads them.
-- [ ] World: `move_asset` shelf → room sets `IN_USE`, room → shelf sets `CLEAN`, and room →
+- [x] World: `move_asset` shelf → room sets `IN_USE`, room → shelf sets `CLEAN`, and room →
   room is allowed. Breach at `clean ≤ min` raises one work order (the one-per-zone guard stays).
   `deliver_wo` adds **3** new clean pumps to the shelf (next free `IVP-n`) and emits `CLEARED`
   once `clean > min`.
-- [ ] Simulator: delete the room events, the soiled/reprocessing timers, the demo bot, and the
+- [x] Simulator: delete the room events, the soiled/reprocessing timers, the demo bot, and the
   `surge` command. Keep the position jitter stream, because it exercises the coalescing and
   backpressure work and appears in the drawer. Only a person moves pumps between zones.
-- [ ] The additive-only trap doesn't apply here: nothing is deployed, so no old client can
+- [x] The additive-only trap doesn't apply here: nothing is deployed, so no old client can
   replay these frames. Say so in the commit body.
-- [ ] Update the server and protocol unit tests to the new model, and delete tests for removed
+- [x] Update the server and protocol unit tests to the new model, and delete tests for removed
   behavior.
 
 **Verify:** `npm run typecheck && npm run lint && npm test`. Then
@@ -978,3 +978,23 @@ window plus a phone. The whole loop works.
     The portal steps haven't started.
   - Plan fix: 5.2 Verify used `h=probe` (5 chars), which fails `HOSPITAL_ID_PATTERN`
     (`^[a-z0-9]{8}$`), so the socket just closes. It now reads `probe001`.
+- 2026-09-27 — 4.4 done, `0436b07` [1 session · ~25 trips · L on budget]. 95 unit tests green
+  (98 before; the bot, timer, and lifecycle tests went, and new ones cover restock, reset, and
+  the barrier). Plan grep: 0 hits.
+  - Model: `ZoneKind` is `room | clean`, and status follows the zone (`STATUS_FOR_KIND`). A move
+    to the zone a pump is already in is `INVALID_TRANSITION`. `NOTHING_READY` is removed.
+    `RESTOCK_QUANTITY = 3` and `RESTOCK_ORIGIN = 'RESTOCK'` (the `from` of a restocked pump's
+    `asset_changed`) live in `floor.ts`. Order `quantity` is always 3 and no longer recomputed
+    on accept.
+  - Unplanned: **reset now forces a resync.** Restocked pumps can't be un-created by any
+    sequenced event, so `WorldHub.run` calls `resyncAll()` after `reset`, which calls
+    `EventLog.barrier()` (`since()` below the barrier returns null) and then broadcasts
+    `resync` to every socket. The web store and the client already handle an unsolicited
+    resync. A new delivery test covers both paths.
+  - Web bridging only, to keep typecheck green: the Surge button is gone, the status and copy
+    maps are trimmed, and `dropTarget(from, to)` no longer takes a status. 4.5 deletes all of it.
+    `e2e/loop.spec.ts` is broken until 4.6 (it clicks Surge).
+  - `rng.ts` lost `randInt`/`pick`, which are dead now. Gotcha: Windows `python3` `open()`
+    defaults to cp1252, so a `→` in the output raised mid-write and truncated
+    `simulator.ts` to 0 bytes. Always pass `encoding='utf-8'`. One test file had a CRLF
+    working copy; `sed -i 's/$//'` before editing it.
