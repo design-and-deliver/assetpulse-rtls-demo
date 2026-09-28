@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 21 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 22 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -634,18 +634,18 @@ the Ledger.
 renders on GitHub (check after push).
 **Commit:** `docs: readme, protocol, ADRs`
 
-### ☐ 5.4 · S · ~30m — `docs/ai-assisted-dev.md`
+### ☑ 5.4 · S · ~30m — `docs/ai-assisted-dev.md`
 
 **Budget:** files 1 · new 1 (+0 test) · trips ≈ 5
 **Read:** Ledger (the whole thing — it is the source material).
 
-- [ ] Write it honestly and briefly:
+- [x] Write it honestly and briefly:
   - which parts Claude Code drafted
   - the guardrails: this plan's format, tests-as-gate, the complexity lint, "never fake a
     metric"
   - one case where the AI output was wrong and how the gate caught it (take it from the Ledger)
   - what you would coach a team to adopt
-- [ ] No prompt dumps.
+- [x] No prompt dumps.
 
 **Verify:** a read-through by the user (this doc speaks for them).
 **Commit:** `docs: ai-assisted development notes`
@@ -1075,3 +1075,12 @@ $//'` before editing it.
     left `@assetpulse/*` unresolvable for every later project. Fix: list it last in the root
     `references`. CI `check` and `e2e` are both green on it. Local runs never caught it because warm
     tsbuildinfo skips the tools project.
+- 2026-09-28 — 5.4 done, `2d2f0cc` [1 session · ~10 trips · S holds]. User read-through approved;
+  prettier, lint, and `markdown-link-check` clean. README links the new doc.
+  - Wrong-output case: the 3.3 "drag within Sterile Processing" hint vs the handler that dropped
+    same-zone drops, caught by 5.1's e2e spec. The CI-red-since-1.3 story is included as a gate
+    nobody watched.
+  - The doc avoids linking the plan doc and the Gemini archive (neither is guaranteed to be
+    public after 5.5's scrub). It names no local paths and nothing from the JD.
+  - 1.1's open item resolved (user decision): **no project CLAUDE.md is committed**. It stays
+    gitignored autoconfig boilerplate.
