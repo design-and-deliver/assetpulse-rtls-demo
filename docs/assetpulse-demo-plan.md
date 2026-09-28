@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 22 of 23 done · **Authored against:** the job
+on Opus-class · **Status:** COMPLETE — 23 of 23 done · **Authored against:** the job
 description (role and stack facts only) and an earlier Gemini brainstorm prototype (kept local,
 not in the repo).
 
@@ -649,16 +649,16 @@ renders on GitHub (check after push).
 **Verify:** a read-through by the user (this doc speaks for them).
 **Commit:** `docs: ai-assisted development notes`
 
-### ☐ 5.5 · S · ~20m — Merge once, go public, tag
+### ☑ 5.5 · S · ~20m — Merge once, go public, tag
 
 **Budget:** files 0 · new 0 (+0 test) · trips ≈ 8
 **Read:** none.
 
-- [ ] Drop `plan/assetpulse` from `deploy.yml`'s push branches (5.2 temp trigger), commit.
-- [ ] `git switch main && git merge --no-ff plan/assetpulse`, then push. Deploy runs from `main`.
-- [ ] `gh repo edit --visibility public --accept-visibility-change-consequences`, then set the
+- [x] Drop `plan/assetpulse` from `deploy.yml`'s push branches (5.2 temp trigger), commit.
+- [x] `git switch main && git merge --no-ff plan/assetpulse`, then push. Deploy runs from `main`.
+- [x] `gh repo edit --visibility public --accept-visibility-change-consequences`, then set the
   description, topics (`websocket rtls react-native azure healthcare`), and homepage = live URL.
-- [ ] `git tag v1.0.0 && git push --tags`.
+- [x] `git tag v1.0.0 && git push --tags`.
 
 **Verify:** `gh repo view --json visibility,homepageUrl`, then open the live URL in a private
 window plus a phone. The whole loop works.
@@ -1083,3 +1083,14 @@ $//'` before editing it.
     public after 5.5's scrub). It names no local paths and nothing from the JD.
   - 1.1's open item resolved (user decision): **no project CLAUDE.md is committed**. It stays
     gitignored autoconfig boilerplate.
+- 2026-09-28 — 5.5 done, merge `dd27755`, tag `v1.0.0` [1 session · ~12 trips · S holds]. Repo is
+  PUBLIC with description, topics, and homepage = live URL. CI and Deploy on `main` are both green.
+  - Scrub (user decision: scrub in place, no history rewrite) in `c0e0e35`: the header's local
+    JD-PDF path and ARTICLES review link were replaced with a generic line. The old path survives in
+    pre-scrub history, which was accepted as mild (a filename, no contact details). The same commit
+    dropped `plan/assetpulse` from `deploy.yml`'s push branches.
+  - The first `git push --tags` after `gh repo edit --visibility public` got `403 Your repository
+    is disabled`. The API showed `disabled:false` right after, and a plain retry succeeded, so it was
+    a transient during the visibility flip. Push tags a few seconds after changing visibility.
+  - Live-URL probe and private-window/phone check left to the user (curl to the live host was not
+    permitted from this session).
