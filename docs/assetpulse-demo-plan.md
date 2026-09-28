@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 17 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 18 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -538,13 +538,13 @@ green. Below all of that is the WebSocket drawer.
 `grep -rn "SOILED\|REPROCESSING\|SPD\|surge" packages server/src` returns 0 hits.
 **Commit:** `refactor: shrink world to shelf + 4 rooms + restock`
 
-### ☐ 4.5 · L · ~1.5h — Console as the original 4-panel stack — [opus]
+### ☑ 4.5 · L · ~1.5h — Console as the original 4-panel stack — [opus]
 
 **Budget:** files 6 · new 3 (+0 test) · trips ≈ 22
 **Read:** ⛔ "original UI" trap. In the archive file, only the `#interactive-simulator`
 section. Also `web/src/App.tsx`, `web/src/store.ts`, and `ux-decisions` index.
 
-- [ ] One column, top to bottom:
+- [x] One column, top to bottom:
   1. **Clean Utility:** pump pills on the shelf, plus a badge (`✓ Buffer OK (5/5)` or
      `⚠ Below PAR (2/5)`).
   2. **Patient rooms:** a 2×2 grid of drop zones, where pills drag in and back out.
@@ -552,14 +552,14 @@ section. Also `web/src/App.tsx`, `web/src/store.ts`, and `ux-decisions` index.
      **Complete restock (+3)**, then back to `Standby`.
   4. **Live WebSocket drawer:** collapsed, and its header shows the measured RTT and frame
      count.
-- [ ] The pager is a **real second client**: its own `@assetpulse/client` socket as `tech-web`,
+- [x] The pager is a **real second client**: its own `@assetpulse/client` socket as `tech-web`,
   not a call into the console's store. The pager has one small line: "Also on your phone →"
   linking to `/tech?h=…`.
-- [ ] Move **Drop connection 10 s** (the old Kill network) and the positions filter into the
+- [x] Move **Drop connection 10 s** (the old Kill network) and the positions filter into the
   drawer. Keep the replay toast.
-- [ ] Delete `FloorMap`, `positions.ts`, `ParGauge`, `AlertRail`, `TechQr`, `drop.ts`, the legend,
+- [x] Delete `FloorMap`, `positions.ts`, `ParGauge`, `AlertRail`, `TechQr`, `drop.ts`, the legend,
   the theme toggle (follow `prefers-color-scheme`), and the hospital ID in the header.
-- [ ] Mobile: change the order card's action copy to "Complete restock (+3)". Nothing else.
+- [x] Mobile: change the order card's action copy to "Complete restock (+3)". Nothing else.
 
 **Verify:** `npm run build && npm run typecheck && npm run lint && npm test`, then manually on
 the built server: drag 3 pumps out, the pager lights up, Accept, Restock, and the badge goes
@@ -997,4 +997,26 @@ window plus a phone. The whole loop works.
   - `rng.ts` lost `randInt`/`pick`, which are dead now. Gotcha: Windows `python3` `open()`
     defaults to cp1252, so a `→` in the output raised mid-write and truncated
     `simulator.ts` to 0 bytes. Always pass `encoding='utf-8'`. One test file had a CRLF
-    working copy; `sed -i 's/$//'` before editing it.
+    working copy; `sed -i 's/
+$//'` before editing it.
+- 2026-09-27 — 4.5 done, `da9b110` [1 session · ~40 trips · L over budget: 4 new files (+1 test)
+  vs 3]. Build, typecheck, lint green; 96 unit tests (drop.test went, pager.test is new).
+  Manual run on the built server passed: 3 drags, Below PAR (2/5), pager New order, Accept,
+  Complete restock (+3), back to Buffer OK (5/5) with IVP-106..108 on the shelf, and Drop
+  connection 10 s, which reconnected with the replay toast.
+  - New files: `Stock.tsx` (shelf + rooms, one drag surface), `TechPager.tsx`, `pager.ts`
+    (`createPager`, `currentOrder`, `pagerStep`; tech id `tech-web`). `outcome()` is now exported
+    from `store.ts` and shared with the pager.
+  - Drag: pointer events with `setPointerCapture`, and `elementFromPoint(...).closest('[data-zone]')`
+    picks the target. Tap a pill, then tap a zone (or its "Move X here" button) is the
+    touch/keyboard path. Bug found in the manual run: the drop was judged from the last rendered
+    drag state, so a fast drag registered as a tap. It is now judged from the `pointerup`
+    event itself (a ref mirrors the state).
+  - For 4.6: pills are `button[data-pump="IVP-10n"]` and zones are `[data-zone="ICU-301"]` etc.
+    Mouse `dragTo` works. The pager's buttons read `Accept` and `Complete restock (+3)`, and the
+    badge text is `⚠ Below PAR (2/5)` / `✓ Buffer OK (n/5)`.
+  - Gotcha: the built server indexes `web/dist` at startup, so after `npm run build -w
+    @assetpulse/web` a running server 404s the new bundle and the page is blank with no console
+    error. Restart the server.
+  - The RTT moved out of the header's connection pill into the drawer header. The pill shows
+    state only. `theme.ts` is gone and tokens follow `prefers-color-scheme` only.
