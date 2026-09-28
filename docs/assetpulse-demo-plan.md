@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 20 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 21 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -614,18 +614,18 @@ green. The drawer shows real frames and the RTT.
 the Ledger.
 **Commit:** `ci: azure app service deploy`
 
-### ☐ 5.3 · M · ~1h — README, protocol doc, ADRs
+### ☑ 5.3 · M · ~1h — README, protocol doc, ADRs
 
 **Budget:** files 1 · new 7 (+0 test) · trips ≈ 12
 **Read:** `packages/protocol/src/frames.ts`, Ledger (for the live URL).
 
-- [ ] `README.md`:
+- [x] `README.md`:
   - a 30-second pitch, the live URL, a QR image, and a GIF (recorded with the user)
   - an architecture diagram (Mermaid)
   - "what to try" (surge, phone, kill network, open DevTools → WS)
   - run locally
-- [ ] `docs/protocol.md`: every frame, the topics, close codes, and the resume algorithm.
-- [ ] `docs/adr/`, each ≤ 1 page: 0001 WebSockets vs SSE vs polling · 0002 raw `ws` vs SignalR
+- [x] `docs/protocol.md`: every frame, the topics, close codes, and the resume algorithm.
+- [x] `docs/adr/`, each ≤ 1 page: 0001 WebSockets vs SSE vs polling · 0002 raw `ws` vs SignalR
   / Azure Web PubSub · 0003 two streams (sequenced events vs droppable positions) · 0004 where
   APIM + Entra ID would sit (WebSocket passthrough API, JWT validation) · 0005 ServiceNow
   `wm_order` + Snowflake sink as adapters.
@@ -1054,3 +1054,24 @@ $//'` before editing it.
   - Claude-in-Chrome clicks on some portal iframe buttons (Apply, Download publish profile) did
     not register; the user clicked those. Navigating away from a dirty blade raises a
     beforeunload dialog that freezes the extension.
+- 2026-09-27 — 5.3 done, `ef02a90` + `6e47950` (GIF) + `9ee0a8f` (diagram) [1 session · ~45
+  trips · M holds on docs; the CI fix below overran it]. `markdown-link-check` 0 dead links over
+  README + `docs/**`; Mermaid, QR, and GIF checked rendering on GitHub (branch view).
+  - Docs describe the SHIPPED model (4b), not the authoring-time one: 5 pumps, PAR min 2 / max 5,
+    restock +3, statuses `CLEAN|IN_USE`, no surge, no bot. "What to try" dropped surge and the QR
+    card (⛔ design contract); the README QR is just the live URL. The phone path is the pager's
+    "Also on your phone →" link, since a static QR can't carry the per-visitor `?h=`.
+  - `docs/protocol.md` notes two code facts found while writing: args that fail their schema close
+    4400 (so `BAD_ARGS` is never sent), and the shipped client never retries a command, although
+    the server cache would make a same-`cmdId` retry safe.
+  - GIF recorded with Claude-in-Chrome `gif_creator` on the live site (`?h=readme01`, 14 frames,
+    1.5 MB, watermark and progress bar off). A drag that starts where a pill *used* to be grabs the
+    neighbour — screenshot between drags. The first Mermaid (nested subgraphs + unconnected
+    nodes) rendered unreadably small on GitHub, so it was cut to 9 connected nodes.
+  - **Unplanned fix `08c90f1` (user-approved): CI had been red on every push since 1.3.** Evidence:
+    a fully clean local `tsc -b` gave 50 errors, and a second run gave 0. A throwaway `ci-debug`
+    branch (since deleted) showed the build order and emit were correct and resolution worked when
+    protocol was prebuilt. Isolated: building `tsconfig.tools.json` FIRST in the same `tsc -b` run
+    left `@assetpulse/*` unresolvable for every later project. Fix: list it last in the root
+    `references`. CI `check` and `e2e` are both green on it. Local runs never caught it because warm
+    tsbuildinfo skips the tools project.
