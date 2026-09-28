@@ -2,10 +2,9 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 22 of 23 done · **Authored against:** the JD PDF
-(`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
-and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
-`ARTICLES/great-idea-no-websocket.html`).
+on Opus-class · **Status:** IN PROGRESS — 22 of 23 done · **Authored against:** the job
+description (role and stack facts only) and an earlier Gemini brainstorm prototype (kept local,
+not in the repo).
 
 Abandoning this plan is one `git branch -D plan/assetpulse`, at any point.
 `git log main..plan/assetpulse` is the plan's whole reviewable delta.

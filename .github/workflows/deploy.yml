@@ -2,8 +2,7 @@ name: Deploy
 
 on:
   push:
-    # plan/assetpulse: dispatch only works once this file is on main; drop at the 5.5 merge.
-    branches: [main, plan/assetpulse]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
