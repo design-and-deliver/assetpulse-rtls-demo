@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 19 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 20 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -596,18 +596,18 @@ green. The drawer shows real frames and the RTT.
 **Verify:** `npx playwright test`
 **Commit:** `test(e2e): full dispatch loop`
 
-### ☐ 5.2 · M · ~1h — Azure App Service deploy — [INTERACTIVE ONLY]
+### ☑ 5.2 · M · ~1h — Azure App Service deploy — [INTERACTIVE ONLY]
 
 **Budget:** files 1 · new 1 (+0 test) · trips ≈ 12
 **Read:** ⛔ App Service traps.
 
-- [ ] **With the user, in the Azure portal:** create a Linux Web App (Node 22 LTS, B1). In
+- [x] **With the user, in the Azure portal:** create a Linux Web App (Node 22 LTS, B1). In
   Configuration → General settings, set **Web sockets = On** and **Always On = On**. Set the
   startup command to `node server/dist/index.js`. Download the publish profile, then run
   `gh secret set AZURE_WEBAPP_PUBLISH_PROFILE < profile.PublishSettings` and delete the file.
-- [ ] `.github/workflows/deploy.yml`: on push to `main` (and `workflow_dispatch`), build, then
+- [x] `.github/workflows/deploy.yml`: on push to `main` (and `workflow_dispatch`), build, then
   `azure/webapps-deploy@v3`.
-- [ ] Trigger it once via `workflow_dispatch` on the plan branch.
+- [x] Trigger it once via `workflow_dispatch` on the plan branch.
 
 **Verify:** `curl -s https://<app>.azurewebsites.net/healthz` returns `ok:true`, then
 `npx wscat -c "wss://<app>.azurewebsites.net/ws?h=probe001"` receives `hello`. Record the URL in
@@ -1035,3 +1035,22 @@ $//'` before editing it.
   - Tour re-captured with a scratch Playwright script against the built server on 8799. Its
     resume shot restocks from the pager while the console is offline (the pager has its own
     socket), so the toast reads "Missed while offline: 5 events replayed."
+- 2026-09-27 — 5.2 done, `518828f` + `81f7a89` [1 session · ~70 trips, portal-heavy · M holds: 1
+  file]. Live: https://assetpulse-rtls-gqhhgaf7c5ahe3gv.centralus-01.azurewebsites.net —
+  `/healthz` `ok:true`, `/` and `/tech/` 200, `wss://…/ws?h=probe001` first frame `hello`.
+  - Portal defaults to Premium V3 P0V3 (~$62/mo); pick **Basic B1** (~$13/mo) by hand. West US 3
+    failed with "No available instances" (B1 capacity); Central US worked. App Insights off.
+  - New apps get a **random hostname suffix** (secure unique default hostname), so the URL is
+    not `<app>.azurewebsites.net`. Basic auth must be Enabled on the Deployment tab or the
+    publish profile can't deploy.
+  - Linux General settings has **no Web sockets toggle** any more; WS works without it. The
+    startup command lives on **Stack settings**, not General. The bundle's `package.json` also
+    carries `"start"` as a fallback.
+  - Workspace deps are symlinks in `node_modules` and don't survive the zip, so `deploy.yml`
+    stages a flat `bundle/` (server/web/mobile dists + protocol copied into node_modules AFTER
+    `npm install`, which otherwise prunes it). Smoke-tested outside the repo before shipping.
+  - `workflow_dispatch` 404s until the file is on `main`, so the push trigger temporarily
+    includes `plan/assetpulse`; 5.5 drops it.
+  - Claude-in-Chrome clicks on some portal iframe buttons (Apply, Download publish profile) did
+    not register; the user clicked those. Navigating away from a dirty blade raises a
+    beforeunload dialog that freezes the extension.
