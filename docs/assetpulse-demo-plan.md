@@ -2,7 +2,7 @@
 
 **Alias:** `assetpulse` · **Branch:** `plan/assetpulse` (cut from `main` in 1.1) · **Base:** `main`
 · **Model floor:** Sonnet-class; substeps tagged `[opus]` carry design judgment (UI) — run those
-on Opus-class · **Status:** IN PROGRESS — 18 of 23 done · **Authored against:** the JD PDF
+on Opus-class · **Status:** IN PROGRESS — 19 of 23 done · **Authored against:** the JD PDF
 (`~/OneDrive/Pictures/Screenshots 1/Gmail - Technical Team Lead _ Senior Software Engineer.pdf`)
 and the Gemini brainstorm (`trimedx_clinical_asset_telemetry_bundle.html`, review in
 `ARTICLES/great-idea-no-websocket.html`).
@@ -566,16 +566,16 @@ the built server: drag 3 pumps out, the pager lights up, Accept, Restock, and th
 green. The drawer shows real frames and the RTT.
 **Commit:** `feat(web): original 4-panel console over the real socket`
 
-### ☐ 4.6 · M · ~45m — Re-point the e2e and refresh the tour
+### ☑ 4.6 · M · ~45m — Re-point the e2e and refresh the tour
 
 **Budget:** files 2 · new 0 (+0 test) · trips ≈ 12
 **Read:** `e2e/loop.spec.ts`.
 
-- [ ] Rewrite the spec: drag 3 pills to rooms, then the badge reads Below PAR. The pager and the
+- [x] Rewrite the spec: drag 3 pills to rooms, then the badge reads Below PAR. The pager and the
   `/tech` page (a second context) both show the order. Accept in the pager, then the phone card
   shows it taken. Restock, and the badge reads Buffer OK. Drop the connection, and the replay
   toast appears. The drag-staging helpers go away.
-- [ ] Re-capture the screenshots in `ARTICLES/assetpulse-ui-tour.html` (gitignored,
+- [x] Re-capture the screenshots in `ARTICLES/assetpulse-ui-tour.html` (gitignored,
   local only).
 
 **Verify:** `npm run build && npx playwright test` passes 5 runs in a row.
@@ -1020,3 +1020,18 @@ $//'` before editing it.
     error. Restart the server.
   - The RTT moved out of the header's connection pill into the drawer header. The pill shows
     state only. `theme.ts` is gone and tokens follow `prefers-color-scheme` only.
+- 2026-09-27 — 4.6 done, `cd9fbd6` [1 session · ~20 trips · M holds: 1 file + the gitignored
+  tour]. `npm run build && npx playwright test` passed 5 separate runs in a row (~14 s each);
+  lint green.
+  - The spec is linear now: no staging or retry loops, because the sim never moves a pump on its
+    own. Pills and rooms use `data-pump` / `data-zone`, and `dragTo` needs no settling wait.
+    The pager is found as `getByRole('region', { name: 'Tech pager' })`, and the drop button
+    only exists after the `Live WebSocket` drawer toggle is clicked.
+  - "The phone shows it taken" is asserted as the Accept button going away plus the empty
+    state (`Nothing to restock…`): the phone lists only open orders and its own, so another
+    tech's acceptance simply removes the card. There is no "taken" copy on the phone.
+  - Run the 5-run check as 5 separate invocations, not `--repeat-each=5`: the hospital id is
+    computed at module load, so repeats in one worker share a world that is already restocked.
+  - Tour re-captured with a scratch Playwright script against the built server on 8799. Its
+    resume shot restocks from the pager while the console is offline (the pager has its own
+    socket), so the toast reads "Missed while offline: 5 events replayed."
