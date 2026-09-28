@@ -61,6 +61,7 @@ Because there is only that one path, logging, history, and what clients see can'
 
 The frames, topics, close codes, and resume algorithm are in [docs/protocol.md](docs/protocol.md).
 The design decisions are in [docs/adr/](docs/adr/README.md).
+How this was built with Claude Code is described in [docs/ai-assisted-dev.md](docs/ai-assisted-dev.md).
 
 ## What to try
 
