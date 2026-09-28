@@ -13,7 +13,7 @@ product.
 
 <img src="docs/img/qr-live.png" alt="QR code for the live demo URL" width="160">
 
-<!-- GIF: docs/img/demo.gif — drag two pumps, page the tech, accept, restock, drop connection -->
+![Drag three pumps below PAR, the tech accepts and restocks, then the socket drops and resumes](docs/img/demo.gif)
 
 ## The 30-second pitch
 
