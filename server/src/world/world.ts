@@ -57,6 +57,8 @@ export class World {
   private readonly assets: Map<string, Asset>;
   private readonly orders = new Map<string, WorkOrder>();
   private woCounter = FIRST_ORDER;
+  /** Whether the last PAR alert sent was BREACH, so each transition is announced once. */
+  private breached = false;
   private readonly now: () => number;
 
   constructor(options: WorldOptions = {}) {
@@ -96,6 +98,7 @@ export class World {
         events.push(this.transition(asset, initial.status, initial.zoneId));
       }
     }
+    this.breached = false;
     const initialIds = new Set(INITIAL_ASSETS.map((a) => a.id));
     for (const id of this.assets.keys()) if (!initialIds.has(id)) this.assets.delete(id);
     return events;
@@ -117,13 +120,42 @@ export class World {
     if (order.state !== 'accepted') throw new WorldError('NOT_ASSIGNED', `${number} is open`);
     const events = Array.from({ length: order.quantity }, () => this.addPump());
     events.push(this.closeOrder(order));
-    if (this.cleanCount() > PAR.min) events.push(this.parEvent('CLEARED'));
+    if (this.breached && this.cleanCount() > PAR.min) events.push(this.clearPar());
     return events;
   }
 
-  /** Opens the zone's single work order when the clean shelf is at or below min. */
+  /**
+   * Runs every tick. At or below min it raises BREACH and opens the zone's single work order.
+   * Back above min (a pump returned to the shelf) it clears PAR and cancels any order no tech has
+   * accepted yet. An accepted order stands: the tech is committed, and delivery still tops up.
+   */
   evaluatePar(): WorldEvent[] {
-    if (this.cleanCount() > PAR.min || this.activeOrders().length > 0) return [];
+    const low = this.cleanCount() <= PAR.min;
+    if (low && !this.breached) return this.raiseBreach();
+    if (!low && this.breached) return this.recover();
+    return [];
+  }
+
+  // --- internals -------------------------------------------------------------
+
+  private raiseBreach(): WorldEvent[] {
+    this.breached = true;
+    const events = [this.parEvent('BREACH')];
+    if (this.activeOrders().length === 0) events.push(this.orderEvent(this.openOrder()));
+    return events;
+  }
+
+  private recover(): WorldEvent[] {
+    const unaccepted = this.activeOrders().filter((o) => o.state === 'open');
+    return [...unaccepted.map((o) => this.closeOrder(o)), this.clearPar()];
+  }
+
+  private clearPar(): WorldEvent {
+    this.breached = false;
+    return this.parEvent('CLEARED');
+  }
+
+  private openOrder(): WorkOrder {
     const order: WorkOrder = {
       number: orderNumber(this.woCounter++),
       state: 'open',
@@ -135,10 +167,8 @@ export class World {
       opened_at: this.now(),
     };
     this.orders.set(order.number, order);
-    return [this.parEvent('BREACH'), this.orderEvent(order)];
+    return order;
   }
-
-  // --- internals -------------------------------------------------------------
 
   private transition(asset: Asset, status: AssetStatus, zoneId: string): WorldEvent {
     const from = asset.zoneId;
