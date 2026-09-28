@@ -1,0 +1,25 @@
+{
+  "name": "@assetpulse/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-free resilient WebSocket client shared by the AssetPulse web console and handheld.",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@assetpulse/protocol": "*"
+  }
+}

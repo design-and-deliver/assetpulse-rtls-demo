@@ -11,3 +11,7 @@ ARTICLES/
 archive/
 server/data/
 CLAUDE.md
+
+# Playwright output
+test-results/
+playwright-report/
