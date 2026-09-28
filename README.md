@@ -9,7 +9,7 @@ every latency figure and frame count on the screen is measured from actual traff
 Built as a conversation piece for the GeoSense Tech Lead role. It is not a GeoSense or TRIMEDX
 product.
 
-**Live:** https://assetpulse-rtls-gqhhgaf7c5ahe3gv.centralus-01.azurewebsites.net/
+**Live:** https://assetpulse.proswitch.ai/
 
 <img src="docs/img/qr-live.png" alt="QR code for the live demo URL" width="160">
 
