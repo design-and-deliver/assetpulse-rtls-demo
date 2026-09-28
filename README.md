@@ -38,34 +38,15 @@ product.
 
 ```mermaid
 flowchart LR
-  subgraph Clients
-    C["Ops console<br/>React 19 · topics: floor, role:ops"]
-    P["Tech pager (in console)<br/>topic: role:tech"]
-    M["Handheld /tech<br/>Expo · topic: role:tech"]
-  end
-
-  subgraph AppService["Azure App Service (Linux, Node 22)"]
-    H["HTTP server<br/>/ · /tech · /healthz"]
-    WS["/ws (same port)"]
-    R["WorldRegistry<br/>≤ 25 hospitals"]
-    subgraph Hub["WorldHub (one per ?h=)"]
-      W["World<br/>state machine"]
-      L["EventLog<br/>ring of 1,000 · seq"]
-      Q["CommandCache<br/>LRU of 1,000 cmdIds"]
-      F["Position flush<br/>4 Hz, coalesced"]
-    end
-  end
-
-  SN["ServiceNow adapter (mock)<br/>wm_order POST/PATCH"]
-  SF["History sink<br/>Snowflake-shaped JSONL"]
-
-  C & P & M <-->|"JSON frames"| WS
-  WS --> R --> Hub
-  W --> L
-  L -->|"events: never dropped"| WS
-  F -->|"positions: droppable"| WS
-  L --> SN
-  L --> SF
+  C["Ops console<br/>floor · role:ops"] <--> WS
+  P["Tech pager<br/>role:tech"] <--> WS
+  M["Handheld /tech<br/>role:tech"] <--> WS
+  WS["/ws on App Service<br/>one WorldHub per ?h="] -->|command| W["World<br/>state machine"]
+  W -->|events| L["EventLog<br/>seq · ring of 1,000"]
+  L -->|"never dropped"| WS
+  W -->|"positions 4 Hz<br/>droppable"| WS
+  L --> SN["ServiceNow mock<br/>wm_order"]
+  L --> SF["History sink<br/>Snowflake JSONL"]
 ```
 
 Each hospital id gets one server-authoritative `World`. Commands and simulator ticks both produce
