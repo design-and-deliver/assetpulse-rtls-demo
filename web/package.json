@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AssetPulse ops console: live floor map, PAR gauge, and work-order rail.",
+  "description": "AssetPulse ops console: clean-utility shelf, patient rooms, tech pager, and the live wire.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,12 +12,10 @@
   "dependencies": {
     "@assetpulse/client": "*",
     "@assetpulse/protocol": "*",
-    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",

@@ -52,13 +52,6 @@ export function applyFrame(world: WorldView, frame: WorldFrame): WorldView {
   }
 }
 
-/** Orders still needing a tech, newest first. */
-export function activeOrders(world: WorldView): WorkOrder[] {
-  return [...world.workOrders.values()]
-    .filter((o) => o.state !== 'closed')
-    .sort((a, b) => b.opened_at - a.opened_at);
-}
-
 /**
  * Live shelf count, counted the way the server does (every CLEAN pump). `par_alert` only fires on
  * BREACH/CLEARED transitions, so its `clean` goes stale between them.

@@ -1,7 +1,7 @@
 import type { AssetStatus } from '@assetpulse/protocol';
 
-/** Each status has a letter as well as a hue, so status never rests on color alone. */
-export const STATUS_META: Record<AssetStatus, { letter: string; label: string; color: string }> = {
-  CLEAN: { letter: 'C', label: 'Clean', color: 'var(--status-clean)' },
-  IN_USE: { letter: 'U', label: 'In use', color: 'var(--status-in-use)' },
+/** Status words for copy; on screen, a pump's status is simply which panel it sits in. */
+export const STATUS_META: Record<AssetStatus, { label: string }> = {
+  CLEAN: { label: 'Clean' },
+  IN_USE: { label: 'In use' },
 };

@@ -1,7 +1,6 @@
 import { ClientError, type AssetPulseClient, type ConnectionState } from '@assetpulse/client';
-import { FrameType, ZONES, type Command } from '@assetpulse/protocol';
+import { FrameType, ZONE_IDS, type Command } from '@assetpulse/protocol';
 import { commandFailureText, moveFailureText, replayText, type CommandFailure } from './copy';
-import { PositionTracker } from './positions';
 import { EMPTY_WORLD, applyFrame, type WorldFrame, type WorldView } from './world';
 
 export interface ConnectionView {
@@ -28,10 +27,9 @@ export interface ConsoleState {
 
 export interface ConsoleStore {
   readonly client: AssetPulseClient;
-  readonly positions: PositionTracker;
   getState(): ConsoleState;
   subscribe(fn: () => void): () => void;
-  /** Optimistic drag-drop: the dot and the asset move now, and snap back if the server refuses. */
+  /** Optimistic drag-drop: the pill moves now, and snaps back if the server refuses. */
   moveAsset(assetId: string, toZoneId: string): Promise<void>;
   /** Sends a no-argument world command; a refusal becomes an error toast. */
   run(command: Command, action: string): Promise<void>;
@@ -52,13 +50,14 @@ const REPLAYABLE = new Set<string>([
   FrameType.parAlert,
   FrameType.workOrder,
 ]);
-const ZONE_RECTS = new Map(ZONES.map((z) => [z.id, z.rect]));
+const KNOWN_ZONES = new Set(ZONE_IDS);
 const TOAST_MS = 6000;
-/** Longest a dropped dot waits for the server's position to reach its new zone. */
-const HOLD_MAX_MS = 4000;
 
 /** What a command's outcome boils down to: null = accepted, else why not. */
-async function outcome(client: AssetPulseClient, command: Command): Promise<CommandFailure | null> {
+export async function outcome(
+  client: AssetPulseClient,
+  command: Command,
+): Promise<CommandFailure | null> {
   try {
     const ack = await client.send(command);
     return ack.ok ? null : (ack.error ?? 'BAD_ARGS');
@@ -69,11 +68,10 @@ async function outcome(client: AssetPulseClient, command: Command): Promise<Comm
 }
 
 /**
- * Folds the client's frames into one immutable snapshot for `useSyncExternalStore`. Positions go
- * to the tracker instead, so 4 Hz motion never touches React state.
+ * Folds the client's frames into one immutable snapshot for `useSyncExternalStore`. Positions are
+ * never read here: they only show up raw in the wire drawer.
  */
 export function createConsoleStore(client: AssetPulseClient): ConsoleStore {
-  const positions = new PositionTracker();
   const listeners = new Set<() => void>();
   let state: ConsoleState = {
     world: EMPTY_WORLD,
@@ -115,7 +113,6 @@ export function createConsoleStore(client: AssetPulseClient): ConsoleStore {
       update({ world: applyFrame(state.world, frame as WorldFrame) });
     });
   }
-  client.on(FrameType.positions, (frame) => positions.push(frame.batch, performance.now()));
   // Replay is written right after `resume` and before the ping, so the first ack ends it.
   client.on(FrameType.ack, () => {
     finishReplay();
@@ -137,8 +134,7 @@ export function createConsoleStore(client: AssetPulseClient): ConsoleStore {
 
   async function moveAsset(assetId: string, toZoneId: string): Promise<void> {
     const before = state.world.assets.get(assetId);
-    const rect = ZONE_RECTS.get(toZoneId);
-    if (!before || !rect) return;
+    if (!before || !KNOWN_ZONES.has(toZoneId)) return;
     setAssetZone(assetId, toZoneId);
     const optimistic = state.world.assets.get(assetId);
 
@@ -146,14 +142,9 @@ export function createConsoleStore(client: AssetPulseClient): ConsoleStore {
       name: 'move_asset',
       args: { assetId, toZoneId },
     });
-    if (failure === null) {
-      positions.releaseWhenIn(assetId, rect);
-      setTimeout(() => positions.expire(assetId, rect, performance.now()), HOLD_MAX_MS);
-      return;
-    }
+    if (failure === null) return;
     // Revert only if nothing newer (an event, a snapshot) replaced the optimistic copy.
     if (state.world.assets.get(assetId) === optimistic) setAssetZone(assetId, before.zoneId);
-    positions.release(assetId, performance.now());
     toast(moveFailureText(assetId, before.status, toZoneId, failure), 'error');
   }
 
@@ -169,7 +160,6 @@ export function createConsoleStore(client: AssetPulseClient): ConsoleStore {
 
   return {
     client,
-    positions,
     getState: () => state,
     subscribe(fn) {
       listeners.add(fn);

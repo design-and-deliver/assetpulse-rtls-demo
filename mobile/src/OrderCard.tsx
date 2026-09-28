@@ -1,4 +1,4 @@
-import type { WorkOrder } from '@assetpulse/protocol';
+import { RESTOCK_QUANTITY, type WorkOrder } from '@assetpulse/protocol';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface Props {
@@ -29,7 +29,9 @@ export function OrderCard({ order, fresh, busy, live, onAccept, onDeliver }: Pro
         onPress={open ? onAccept : onDeliver}
         style={[styles.button, open ? styles.accept : styles.deliver, disabled && styles.disabled]}
       >
-        <Text style={styles.buttonText}>{open ? 'Accept' : 'Delivered'}</Text>
+        <Text style={styles.buttonText}>
+          {open ? 'Accept' : `Complete restock (+${RESTOCK_QUANTITY})`}
+        </Text>
       </Pressable>
     </View>
   );

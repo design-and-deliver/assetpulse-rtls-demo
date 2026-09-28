@@ -1,110 +1,30 @@
-import { FLOOR_NAME } from '@assetpulse/protocol';
-import QRCode from 'qrcode';
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { AlertRail } from './AlertRail';
+import { INITIAL_ASSETS, PAR } from '@assetpulse/protocol';
+import { useSyncExternalStore } from 'react';
 import styles from './App.module.css';
 import { ConnectionPill } from './ConnectionPill';
-import { FloorMap } from './FloorMap';
-import { ParGauge } from './ParGauge';
-import panels from './Panels.module.css';
-import type { ConnectionView, ConsoleStore } from './store';
-import { useTheme } from './theme';
+import type { Pager } from './pager';
+import { Stock } from './Stock';
+import type { ConsoleStore } from './store';
+import { TechPager } from './TechPager';
 import { Toasts } from './Toasts';
 import { WireDrawer } from './WireDrawer';
-import { activeOrders, cleanCount } from './world';
+import { cleanCount } from './world';
 
-function useNow(intervalMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
+/** Pumps a fresh shelf must lose to reach its minimum and page a tech. */
+const TO_BREACH = INITIAL_ASSETS.length - PAR.min;
 
-const KILL_MS = 10_000;
-
-function killLabel(connection: ConnectionView, now: number): string {
-  if (connection.killedUntil === null) return 'Kill network 10 s';
-  const left = Math.max(0, Math.ceil((connection.killedUntil - now) / 1000));
-  return `Offline · back in ${left} s`;
-}
-
-function Toolbar({
+/** One column, one story: shelf → rooms → pager → the wire underneath it all. */
+export function App({
   store,
-  connection,
-  now,
+  pager,
+  hospitalId,
 }: {
   store: ConsoleStore;
-  connection: ConnectionView;
-  now: number;
+  pager: Pager;
+  hospitalId: string;
 }) {
-  const live = connection.state === 'open';
-  return (
-    <div className={panels.toolbar}>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={!live}
-        onClick={() => void store.run({ name: 'reset', args: {} }, 'Reset')}
-      >
-        Reset
-      </button>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={connection.killedUntil !== null}
-        onClick={() => store.killNetwork(KILL_MS)}
-      >
-        {killLabel(connection, now)}
-      </button>
-      <span className={panels.toolbarHint}>Drag a pump to its next zone.</span>
-    </div>
-  );
-}
-
-/** Hands the same hospital to a phone: scan, and the tech view joins this world. */
-function TechQr({ hospitalId }: { hospitalId: string }) {
-  const url = `${window.location.origin}/tech?h=${hospitalId}`;
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    void QRCode.toDataURL(url, { margin: 1, width: 160 }).then((data) => live && setSrc(data));
-    return () => {
-      live = false;
-    };
-  }, [url]);
-  return (
-    <section className={panels.panel} aria-labelledby="tech-heading">
-      <h2 id="tech-heading" className={panels.heading}>
-        Be the tech
-      </h2>
-      {src && (
-        <img
-          className={panels.qr}
-          src={src}
-          width={160}
-          height={160}
-          alt="QR code for the tech view"
-        />
-      )}
-      <p className={panels.muted}>
-        Scan with a phone, or{' '}
-        <a href={url} target="_blank" rel="noreferrer">
-          open the tech view
-        </a>{' '}
-        in a second window.
-      </p>
-    </section>
-  );
-}
-
-export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: string }) {
   const { world, connection, toasts } = useSyncExternalStore(store.subscribe, store.getState);
-  const [theme, toggleTheme] = useTheme();
-  const now = useNow(1000);
-  const par = world.par;
-  const breach = par?.state === 'BREACH';
+  const live = connection.state === 'open';
 
   return (
     <div className={styles.shell}>
@@ -112,35 +32,32 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
         <div>
           <h1 className={styles.title}>AssetPulse</h1>
           <p className={styles.subtitle}>
-            Floor {FLOOR_NAME} · hospital <code>{hospitalId}</code>
+            Drag {TO_BREACH} pumps into patient rooms to drop the shelf to its minimum and page a
+            tech.
           </p>
         </div>
         <div className={styles.headerTools}>
           <ConnectionPill connection={connection} />
-          <button type="button" className={styles.button} onClick={toggleTheme}>
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          <button
+            type="button"
+            className={styles.button}
+            disabled={!live}
+            onClick={() => void store.run({ name: 'reset', args: {} }, 'Reset')}
+          >
+            Reset
           </button>
         </div>
       </header>
       <main className={styles.main}>
-        <div>
-          <Toolbar store={store} connection={connection} now={now} />
-          <FloorMap
-            assets={[...world.assets.values()]}
-            positions={store.positions}
-            parBreach={breach}
-            onMove={(assetId, toZoneId) => void store.moveAsset(assetId, toZoneId)}
-          />
-        </div>
-        <aside className={styles.side}>
-          {par && (
-            <ParGauge clean={cleanCount(world)} min={par.min} max={par.max} breach={breach} />
-          )}
-          <AlertRail orders={activeOrders(world)} now={now} />
-          <TechQr hospitalId={hospitalId} />
-        </aside>
+        <Stock
+          assets={[...world.assets.values()]}
+          par={world.par}
+          clean={cleanCount(world)}
+          onMove={(assetId, toZoneId) => void store.moveAsset(assetId, toZoneId)}
+        />
+        <TechPager pager={pager} hospitalId={hospitalId} />
+        <WireDrawer stats={store.client.stats} connection={connection} onKill={store.killNetwork} />
       </main>
-      <WireDrawer stats={store.client.stats} />
       <Toasts toasts={toasts} onDismiss={store.dismissToast} />
     </div>
   );

@@ -1,5 +1,5 @@
 .shell {
-  max-width: 1320px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 16px;
 }
@@ -7,7 +7,7 @@
 .header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: var(--gap);
@@ -20,12 +20,8 @@
 }
 
 .subtitle {
-  margin: 0;
+  margin: 2px 0 0;
   color: var(--text-muted);
-}
-
-.subtitle code {
-  font-family: var(--mono);
 }
 
 .headerTools {
@@ -49,24 +45,6 @@
   background: var(--surface-2);
 }
 
-.main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: var(--gap);
-  align-items: start;
-}
-
-.side {
-  display: grid;
-  gap: var(--gap);
-}
-
-@media (max-width: 900px) {
-  .main {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .button:disabled {
   opacity: 0.55;
   cursor: default;
@@ -74,4 +52,9 @@
 
 .button:disabled:hover {
   background: var(--surface);
+}
+
+.main {
+  display: grid;
+  gap: var(--gap);
 }

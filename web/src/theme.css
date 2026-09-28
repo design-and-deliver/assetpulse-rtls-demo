@@ -1,9 +1,9 @@
 /*
- * Design tokens. Calm clinical palette: status hues are muted and always paired with a letter,
- * and only a PAR breach uses --alert (alarm fatigue is a real clinical concern).
+ * Design tokens. Calm clinical palette: only a PAR breach uses --alert (alarm fatigue is a real
+ * clinical concern); a new order on the pager uses the quieter --warn. Follows the OS theme.
  */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --bg: #f4f6f8;
   --surface: #ffffff;
   --surface-2: #eef1f4;
@@ -11,63 +11,27 @@
   --text: #1c2630;
   --text-muted: #5b6874;
 
-  --zone-room: #f8fafb;
-  --zone-hall: #eef1f4;
-  --zone-clean: #eef5f3;
-  --zone-soiled: #f6f2ec;
-  --zone-spd: #f0f1f5;
-  --zone-stroke: #c3cbd3;
-
   --status-clean: #2f7d6d;
   --status-in-use: #3a6ea5;
-  --status-soiled: #9a6a2f;
-  --status-reprocessing: #6b7280;
-  --status-ready: #4d7c3a;
-  --dot-text: #ffffff;
+  --on-status: #ffffff;
+  --offline: #6b7280;
 
   --ok: #2f7d6d;
+  --ok-soft: #e6f2ef;
   --alert: #c0392b;
   --alert-soft: #fbeceb;
+  --warn: #9a6a2f;
+  --warn-soft: #f8efe2;
   --focus: #3a6ea5;
 
   --radius: 10px;
-  --gap: 16px;
+  --gap: 12px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #11161b;
-  --surface: #182028;
-  --surface-2: #1f2932;
-  --border: #2d3944;
-  --text: #e3e9ee;
-  --text-muted: #93a1ad;
-
-  --zone-room: #1b242c;
-  --zone-hall: #161e25;
-  --zone-clean: #17262a;
-  --zone-soiled: #262219;
-  --zone-spd: #1c2029;
-  --zone-stroke: #34424e;
-
-  --status-clean: #4fae99;
-  --status-in-use: #6a9fd6;
-  --status-soiled: #c99554;
-  --status-reprocessing: #8d96a3;
-  --status-ready: #7bb162;
-  --dot-text: #0f1418;
-
-  --ok: #4fae99;
-  --alert: #ef6b5b;
-  --alert-soft: #3a1f1c;
-  --focus: #6a9fd6;
-}
-
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
+  :root {
     --bg: #11161b;
     --surface: #182028;
     --surface-2: #1f2932;
@@ -75,23 +39,17 @@
     --text: #e3e9ee;
     --text-muted: #93a1ad;
 
-    --zone-room: #1b242c;
-    --zone-hall: #161e25;
-    --zone-clean: #17262a;
-    --zone-soiled: #262219;
-    --zone-spd: #1c2029;
-    --zone-stroke: #34424e;
-
     --status-clean: #4fae99;
     --status-in-use: #6a9fd6;
-    --status-soiled: #c99554;
-    --status-reprocessing: #8d96a3;
-    --status-ready: #7bb162;
-    --dot-text: #0f1418;
+    --on-status: #0f1418;
+    --offline: #8d96a3;
 
     --ok: #4fae99;
+    --ok-soft: #17292a;
     --alert: #ef6b5b;
     --alert-soft: #3a1f1c;
+    --warn: #d6a15e;
+    --warn-soft: #2e2519;
     --focus: #6a9fd6;
   }
 }
