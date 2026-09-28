@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Workspace deps are symlinks in node_modules, which don't survive the zip deploy.
+      # Stage a flat bundle instead: same relative layout the server expects
+      # (server/dist -> ../../web/dist, ../../mobile/dist), protocol copied in as a real dir.
+      - name: Stage bundle
+        run: |
+          set -euo pipefail
+          D=bundle
+          dep() { node -p "require('./$1/package.json').dependencies['$2']"; }
+          PKGS="ws@$(dep server ws) sirv@$(dep server sirv) zod@$(dep packages/protocol zod)"
+          mkdir -p $D/server $D/web $D/mobile
+          cp -r server/dist server/package.json $D/server/
+          cp -r web/dist $D/web/
+          cp -r mobile/dist $D/mobile/
+          # "start" doubles as the App Service startup command if none is configured.
+          echo '{"private":true,"type":"module","scripts":{"start":"node server/dist/index.js"}}' > $D/package.json
+          (cd $D && npm install --omit=dev --no-package-lock --no-save $PKGS)
+          # After the install: npm prunes anything in node_modules it didn't put there.
+          mkdir -p $D/node_modules/@assetpulse/protocol
+          cp -r packages/protocol/dist packages/protocol/package.json $D/node_modules/@assetpulse/protocol/
+
+      - id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: assetpulse-rtls
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: bundle
