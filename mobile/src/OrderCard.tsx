@@ -1,5 +1,7 @@
 import { RESTOCK_QUANTITY, type WorkOrder } from '@assetpulse/protocol';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { usePalette, type Palette } from './theme';
 
 interface Props {
   order: WorkOrder;
@@ -13,6 +15,8 @@ interface Props {
 export function OrderCard({ order, fresh, busy, live, onAccept, onDeliver }: Props) {
   const open = order.state === 'open';
   const disabled = busy || !live;
+  const { palette } = usePalette();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={[styles.card, fresh && styles.fresh]}>
       <View style={styles.top}>
@@ -37,25 +41,27 @@ export function OrderCard({ order, fresh, busy, live, onAccept, onDeliver }: Pro
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#161b22',
-    borderColor: '#30363d',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    gap: 6,
-  },
-  fresh: { borderColor: '#d29922', backgroundColor: '#2b2111' },
-  top: { flexDirection: 'row', justifyContent: 'space-between' },
-  number: { color: '#e6edf3', fontSize: 16, fontWeight: '600' },
-  state: { color: '#d29922', fontSize: 14 },
-  mine: { color: '#3fb950' },
-  body: { color: '#e6edf3', fontSize: 15 },
-  meta: { color: '#8b949e', fontSize: 14 },
-  button: { marginTop: 6, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  accept: { backgroundColor: '#1f6feb' },
-  deliver: { backgroundColor: '#238636' },
-  disabled: { opacity: 0.5 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 14,
+      gap: 6,
+    },
+    fresh: { borderColor: c.warn, backgroundColor: c.warnSoft },
+    top: { flexDirection: 'row', justifyContent: 'space-between' },
+    number: { color: c.text, fontSize: 16, fontWeight: '600' },
+    state: { color: c.warn, fontSize: 14 },
+    mine: { color: c.ok },
+    body: { color: c.text, fontSize: 15 },
+    meta: { color: c.textMuted, fontSize: 14 },
+    button: { marginTop: 6, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+    accept: { backgroundColor: c.statusInUse },
+    deliver: { backgroundColor: c.ok },
+    disabled: { opacity: 0.5 },
+    buttonText: { color: c.onStatus, fontSize: 16, fontWeight: '600' },
+  });
+}
