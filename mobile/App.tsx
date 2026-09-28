@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { OrderCard } from './src/OrderCard';
+import { usePalette, type Palette } from './src/theme';
 import { useTechSession, type Status } from './src/useTechSession';
 
 const LABEL: Record<Status, string> = {
@@ -19,13 +21,16 @@ export default function App() {
   const session = useTechSession();
   const { status, hospitalId, techId, orders, notice } = session;
   const live = status === 'open';
+  const { palette, dark } = usePalette();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
+  const bar = dark ? 'light' : 'dark';
 
   if (!hospitalId) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.title}>AssetPulse · Tech</Text>
         <Text style={styles.status}>{LABEL[status]}</Text>
-        <StatusBar style="light" />
+        <StatusBar style={bar} />
       </View>
     );
   }
@@ -68,28 +73,30 @@ export default function App() {
           ))
         )}
       </ScrollView>
-      <StatusBar style="light" />
+      <StatusBar style={bar} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1419' },
-  centered: { alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
-  header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, gap: 4 },
-  title: { color: '#e6edf3', fontSize: 22, fontWeight: '600' },
-  meta: { color: '#8b949e', fontSize: 14 },
-  status: { color: '#d29922', fontSize: 14, textAlign: 'center' },
-  live: { color: '#3fb950' },
-  banner: { backgroundColor: '#d29922', paddingVertical: 8, paddingHorizontal: 16 },
-  bannerText: { color: '#0f1419', fontWeight: '600', textAlign: 'center' },
-  notice: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#3d1d1d',
-  },
-  noticeText: { color: '#ff7b72', fontSize: 14 },
-  list: { padding: 16, gap: 12 },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    centered: { alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
+    header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, gap: 4 },
+    title: { color: c.text, fontSize: 22, fontWeight: '600' },
+    meta: { color: c.textMuted, fontSize: 14 },
+    status: { color: c.warn, fontSize: 14, textAlign: 'center' },
+    live: { color: c.ok },
+    banner: { backgroundColor: c.warn, paddingVertical: 8, paddingHorizontal: 16 },
+    bannerText: { color: c.onStatus, fontWeight: '600', textAlign: 'center' },
+    notice: {
+      marginHorizontal: 16,
+      marginBottom: 8,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: c.alertSoft,
+    },
+    noticeText: { color: c.alert, fontSize: 14 },
+    list: { padding: 16, gap: 12 },
+  });
+}
