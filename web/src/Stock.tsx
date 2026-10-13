@@ -183,7 +183,7 @@ function BufferBadge({ clean, par }: { clean: number; par: ParState }) {
       className={`${styles.badge} ${breach ? styles.badgeAlert : styles.badgeOk}`}
       role="status"
     >
-      {breach ? '⚠ Below PAR' : '✓ Buffer OK'} ({clean}/{par.max})
+      {breach ? '⚠ At min' : '✓ Buffer OK'} ({clean}/{par.max})
     </span>
   );
 }
@@ -209,7 +209,7 @@ export function Stock({
           <h2 id="shelf-heading" className={styles.heading}>
             Clean Utility{' '}
             <span className={styles.headingNote}>
-              PAR {PAR.max} · min {PAR.min}
+              PAR {PAR.max} · reorder at {PAR.min}
             </span>
           </h2>
           {par && <BufferBadge clean={clean} par={par} />}

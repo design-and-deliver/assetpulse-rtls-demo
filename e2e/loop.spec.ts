@@ -20,7 +20,7 @@ test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume r
   const desk = await (await browser.newContext()).newPage();
   const phone = await (await browser.newContext()).newPage();
   const pager = desk.getByRole('region', { name: 'Tech pager' });
-  const badge = desk.getByRole('status').filter({ hasText: /Below PAR|Buffer OK/ });
+  const badge = desk.getByRole('status').filter({ hasText: /At min|Buffer OK/ });
 
   await test.step('three pumps to rooms breach PAR', async () => {
     await desk.goto(`/?h=${hospital}`);
@@ -32,7 +32,7 @@ test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume r
       await pill.dragTo(zone);
       await expect(zone.locator(`button[data-pump="${pump}"]`)).toBeVisible();
     }
-    await expect(badge).toHaveText('⚠ Below PAR (2/5)');
+    await expect(badge).toHaveText('⚠ At min (2/5)');
   });
 
   await test.step('the order reaches the pager and the phone', async () => {
