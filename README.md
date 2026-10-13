@@ -66,7 +66,7 @@ How this was built with Claude Code is described in [docs/ai-assisted-dev.md](do
 ## What to try
 
 1. **Page a tech.** Drag pumps from the Clean Utility shelf into patient rooms. When the shelf
-   reaches its minimum of 2, the status shows **Below PAR** and a work order (`WO0010001`) opens.
+   reaches its reorder point of 2, the status shows **At min** and a work order (`WO0010001`) opens.
 2. **Work the order.** Accept it in the tech pager, then choose **Complete restock (+3)**. The
    shelf refills and the PAR status clears.
 3. **Use a phone.** Choose **Also on your phone →** in the pager. It opens `/tech?h=<same id>`, the
