@@ -197,7 +197,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
         aria-haspopup="dialog"
         onClick={() => dialog.current?.showModal()}
       >
-        <span aria-hidden="true">&#10022;</span> Ask the history
+        <span aria-hidden="true">&#10022;</span> Insights
       </button>
       <dialog
         ref={dialog}
@@ -208,7 +208,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
         <header className={styles.insightsDialogHead}>
           <p className={styles.insightsKicker}>Snowflake Cortex</p>
           <h2 id="insights-h" className={styles.insightsTitle}>
-            Ask the history
+            Insights
           </h2>
           <button type="button" className={styles.insightsClose} aria-label="Close" onClick={close}>
             &times;

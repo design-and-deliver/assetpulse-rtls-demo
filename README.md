@@ -109,7 +109,7 @@ The handheld can also run as a native app: `npm start -w @assetpulse/mobile` (Ex
 ## Snowflake + Cortex sandbox (off in production)
 
 An opt-in analytics layer ([ADR 0006](docs/adr/0006-snowflake-cortex-sandbox.md)): events batch
-into Snowflake every 5 s, and an **Ask the history** panel uses Cortex Analyst for plain-English
+into Snowflake every 5 s, and an **Insights** overlay (header button) uses Cortex Analyst for plain-English
 questions ("median minutes from page to delivery, by tech") and `AI_SUMMARIZE_AGG` for a shift
 summary. It stays off unless `SNOWFLAKE_ENABLED=1` and credentials are set, so the live demo is
 unchanged.
