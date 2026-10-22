@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
+import appStyles from './App.module.css';
 import styles from './Panels.module.css';
 
 /** Mirrors `AskResult` in server/src/snowflake/insights.ts. */
@@ -79,15 +80,13 @@ function Answer({ result }: { result: AskResult }) {
   );
 }
 
-/** Ask the event history in plain English (Cortex Analyst), or get a shift summary (AI_SUMMARIZE_AGG). */
-export function Insights({ hospitalId }: { hospitalId: string }) {
-  const enabled = useEnabled();
+/** The overlay's contents: ask in plain English (Cortex Analyst) or get a shift summary (AI_SUMMARIZE_AGG). */
+function InsightsBody({ hospitalId }: { hospitalId: string }) {
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<AskResult | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
-  if (!enabled) return null;
 
   const h = encodeURIComponent(hospitalId);
   async function run(work: () => Promise<void>) {
@@ -122,21 +121,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="insights-h">
-      <div className={styles.panelTop}>
-        <h2 className={styles.heading} id="insights-h">
-          Ask the history{' '}
-          <span className={styles.headingNote}>Snowflake Cortex · events load every 5 s</span>
-        </h2>
-        <button
-          type="button"
-          className={styles.button}
-          disabled={busy}
-          onClick={() => void summarize()}
-        >
-          Shift summary
-        </button>
-      </div>
+    <div className={styles.insightsBody}>
       <form className={styles.insightsForm} onSubmit={onSubmit}>
         <label htmlFor="insights-q" className={styles.srOnly}>
           Question about this hospital’s history
@@ -174,6 +159,63 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
         {summary && <p className={styles.insightsAnswer}>{summary}</p>}
         {answer && <Answer result={answer} />}
       </div>
-    </section>
+      <p className={styles.insightsFoot}>
+        <button
+          type="button"
+          className={styles.button}
+          disabled={busy}
+          onClick={() => void summarize()}
+        >
+          Shift summary
+        </button>
+        <span className={styles.muted}>Events load into Snowflake every 5 s.</span>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Progressive disclosure: a header button (only when the server has Snowflake on) opens the
+ * panel as a modal <dialog>, which brings Esc-to-close, a focus trap, and a backdrop. The body
+ * stays mounted while closed, so the last answer is still there when it reopens.
+ */
+export function Insights({ hospitalId }: { hospitalId: string }) {
+  const enabled = useEnabled();
+  const dialog = useRef<HTMLDialogElement>(null);
+  if (!enabled) return null;
+  const close = () => dialog.current?.close();
+  /** A click on the backdrop lands on the <dialog> itself; clicks inside land on its children. */
+  const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget) close();
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className={appStyles.button}
+        aria-haspopup="dialog"
+        onClick={() => dialog.current?.showModal()}
+      >
+        <span aria-hidden="true">&#10022;</span> Ask the history
+      </button>
+      <dialog
+        ref={dialog}
+        className={styles.insightsDialog}
+        aria-labelledby="insights-h"
+        onClick={onBackdrop}
+      >
+        <header className={styles.insightsDialogHead}>
+          <p className={styles.insightsKicker}>Snowflake Cortex</p>
+          <h2 id="insights-h" className={styles.insightsTitle}>
+            Ask the history
+          </h2>
+          <button type="button" className={styles.insightsClose} aria-label="Close" onClick={close}>
+            &times;
+          </button>
+        </header>
+        <InsightsBody hospitalId={hospitalId} />
+      </dialog>
+    </>
   );
 }

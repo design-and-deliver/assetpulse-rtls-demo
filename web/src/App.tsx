@@ -14,7 +14,7 @@ import { cleanCount } from './world';
 /** Pumps a fresh shelf must lose to reach its minimum and page a tech. */
 const TO_BREACH = INITIAL_ASSETS.length - PAR.min;
 
-/** One column, one story: shelf → rooms → pager → the wire underneath it all → (when on) its history. */
+/** One column, one story: shelf → rooms → pager → the wire underneath it all. History opens on demand. */
 export function App({
   store,
   pager,
@@ -39,6 +39,7 @@ export function App({
         </div>
         <div className={styles.headerTools}>
           <ConnectionPill connection={connection} />
+          <Insights hospitalId={hospitalId} />
           <button
             type="button"
             className={styles.button}
@@ -58,7 +59,6 @@ export function App({
         />
         <TechPager pager={pager} hospitalId={hospitalId} />
         <WireDrawer stats={store.client.stats} connection={connection} onKill={store.killNetwork} />
-        <Insights hospitalId={hospitalId} />
       </main>
       <Toasts toasts={toasts} onDismiss={store.dismissToast} />
     </div>
