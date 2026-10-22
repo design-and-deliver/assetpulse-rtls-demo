@@ -581,13 +581,15 @@
   padding: 14px 18px 16px;
 }
 
+/* The dialog's action button stays centered (ux: design/modal-header), its note under it. */
 .insightsFoot {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin: 14px 0 0;
+  gap: 6px;
+  margin: 16px 0 0;
   font-size: 13px;
+  text-align: center;
 }
 
 /* The dialog's own buttons: a solid primary Ask, and an outlined secondary with a 3:1 edge. */
