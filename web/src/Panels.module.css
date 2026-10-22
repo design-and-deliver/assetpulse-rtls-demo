@@ -240,7 +240,7 @@
 .action {
   font: inherit;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--on-status); /* white in light mode, near-black on dark mode's lighter fills */
   background: var(--focus);
   border: 0;
   border-radius: 8px;
@@ -600,7 +600,7 @@
 }
 
 .insightsPrimary {
-  color: #ffffff;
+  color: var(--on-status);
   background: var(--focus);
   border-color: var(--focus);
   font-weight: 600;

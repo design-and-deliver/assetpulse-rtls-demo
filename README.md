@@ -101,7 +101,7 @@ Checks:
 
 ```bash
 npm run typecheck && npm run lint && npm test   # Vitest: unit + real-socket integration
-npx playwright test                             # e2e dispatch loop (after npm run build)
+npx playwright test                             # e2e loop + axe a11y gate (after npm run build)
 ```
 
 The handheld can also run as a native app: `npm start -w @assetpulse/mobile` (Expo Go).
