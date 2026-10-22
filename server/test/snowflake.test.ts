@@ -233,15 +233,38 @@ describe('insights', () => {
     expect(sf.query).not.toHaveBeenCalled();
   });
 
-  it('summarizes with the hospital as a bind, not spliced into the SQL', async () => {
+  it('summarizes: measured metrics from SQL plus AI prose, hospital always a bind', async () => {
     const sf = {
       askAnalyst: vi.fn(),
-      query: vi.fn(async () => ({ columns: [], rows: [['12', 'Quiet shift.']] })),
+      query: vi.fn(async (sql: string) =>
+        sql.includes('AI_SUMMARIZE_AGG')
+          ? { columns: [], rows: [['12', 'Quiet shift.']] }
+          : { columns: [], rows: [['2', '1', '0.75', '2', '6']] },
+      ),
     };
-    expect(await summarize(sf, H)).toEqual({ events: 12, summary: 'Quiet shift.' });
-    const [sql, binds] = sf.query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(sql).not.toContain(H);
-    expect(binds).toEqual([H]);
+    expect(await summarize(sf, H)).toEqual({
+      events: 12,
+      summary: 'Quiet shift.',
+      metrics: {
+        ordersOpened: 2,
+        ordersClosed: 1,
+        medianMinutesToDeliver: 0.75,
+        parBreaches: 2,
+        pumpMoves: 6,
+      },
+    });
+    for (const [sql, binds] of sf.query.mock.calls as unknown as [string, string[]][]) {
+      expect(sql).not.toContain(H);
+      expect(binds.every((b) => b === H)).toBe(true);
+    }
+  });
+
+  it('reports no median until an order has closed', async () => {
+    const sf = {
+      askAnalyst: vi.fn(),
+      query: vi.fn(async () => ({ columns: [], rows: [['0', '0', null, '0', '0']] })),
+    };
+    expect((await summarize(sf, H)).metrics.medianMinutesToDeliver).toBeNull();
   });
 });
 

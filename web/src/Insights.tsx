@@ -12,6 +12,64 @@ interface AskResult {
   refused?: string;
 }
 
+/** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
+interface ShiftSummary {
+  events: number;
+  metrics: {
+    ordersOpened: number;
+    ordersClosed: number;
+    medianMinutesToDeliver: number | null;
+    parBreaches: number;
+    pumpMoves: number;
+  };
+  summary: string;
+}
+
+/** Demo shifts are short, so under a minute reads in seconds. */
+function duration(minutes: number | null): string {
+  if (minutes === null) return '—';
+  return minutes < 1 ? `${Math.round(minutes * 60)} s` : `${minutes.toFixed(1)} min`;
+}
+
+/** Numbers first (measured in SQL), then the AI's prose, so the facts never depend on the model. */
+function Summary({ data }: { data: ShiftSummary }) {
+  if (data.events === 0) {
+    return <p className={styles.insightsAnswer}>No events in the last 12 hours yet.</p>;
+  }
+  const m = data.metrics;
+  const stats: [string, string][] = [
+    ['Orders opened', String(m.ordersOpened)],
+    ['Orders closed', String(m.ordersClosed)],
+    ['Median page to delivery', duration(m.medianMinutesToDeliver)],
+    ['Shelf hit minimum', String(m.parBreaches)],
+    ['Pump moves', String(m.pumpMoves)],
+  ];
+  return (
+    <section className={styles.shift} aria-labelledby="shift-h">
+      <h3 id="shift-h" className={styles.shiftHeading}>
+        Last 12 hours
+      </h3>
+      <dl className={styles.shiftStats}>
+        {stats.map(([label, value]) => (
+          <div key={label} className={styles.shiftStat}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {data.summary && (
+        <>
+          <h4 className={styles.shiftSub}>What happened</h4>
+          <p className={styles.shiftProse}>{data.summary}</p>
+          <p className={styles.shiftCredit}>
+            Written by Cortex AI_SUMMARIZE_AGG from {data.events} events.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 const EXAMPLES = [
   'How many work orders were opened today?',
   'Median minutes from page to delivery, by tech',
@@ -86,7 +144,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<AskResult | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ShiftSummary | null>(null);
 
   const h = encodeURIComponent(hospitalId);
   async function run(work: () => Promise<void>) {
@@ -112,8 +170,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
     });
   const summarize = () =>
     run(async () => {
-      const s = await api<{ events: number; summary: string }>(`/api/insights/summary?h=${h}`);
-      setSummary(s.events === 0 ? 'No events in the last 12 hours yet.' : s.summary);
+      setSummary(await api<ShiftSummary>(`/api/insights/summary?h=${h}`));
     });
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -160,7 +217,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
       </div>
       <div aria-live="polite">
         {error && <p className={styles.insightsError}>{error}</p>}
-        {summary && <p className={styles.insightsAnswer}>{summary}</p>}
+        {summary && <Summary data={summary} />}
         {answer && <Answer result={answer} />}
       </div>
       <p className={styles.insightsFoot}>

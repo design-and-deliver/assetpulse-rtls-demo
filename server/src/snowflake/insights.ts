@@ -6,7 +6,7 @@ import type { AnalystContent, QueryResult, SnowflakeRest } from './rest.js';
  * `/api/insights/*`: Cortex over this hospital's event history.
  * - `GET  status`  → `{ enabled }` (the console hides the panel when false)
  * - `POST ask`     → Cortex Analyst turns the question into SQL; we run it and return the rows
- * - `GET  summary` → `AI_SUMMARIZE_AGG` over the last 12 hours of events
+ * - `GET  summary` → measured shift numbers (SQL) plus an `AI_SUMMARIZE_AGG` narrative, last 12 hours
  * With the layer off, only `status` answers; the rest 404, exactly like any unknown path.
  */
 
@@ -37,6 +37,45 @@ SELECT COUNT(*) AS EVENTS, AI_SUMMARIZE_AGG(LINE) AS SUMMARY FROM (
   WHERE HOSPITAL_ID = ? AND EVENT_TS >= DATEADD(hour, -12, CURRENT_TIMESTAMP())
   ORDER BY EVENT_TS
 )`;
+
+/** The last 12 hours, measured: every number on the summary comes from here, not from the AI. */
+const WINDOW = `DATEADD(hour, -12, CURRENT_TIMESTAMP())`;
+const METRICS_SQL = `
+SELECT
+  (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND OPENED_AT >= ${WINDOW}) AS ORDERS_OPENED,
+  (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND CLOSED_AT >= ${WINDOW}) AS ORDERS_CLOSED,
+  (SELECT MEDIAN(MINUTES_TO_DELIVER) FROM WORK_ORDERS
+     WHERE HOSPITAL_ID = ? AND CLOSED_AT >= ${WINDOW}) AS MEDIAN_MINUTES_TO_DELIVER,
+  (SELECT COUNT(*) FROM PAR_ALERTS
+     WHERE HOSPITAL_ID = ? AND STATE = 'BREACH' AND EVENT_TS >= ${WINDOW}) AS PAR_BREACHES,
+  (SELECT COUNT(*) FROM ASSET_MOVES WHERE HOSPITAL_ID = ? AND EVENT_TS >= ${WINDOW}) AS PUMP_MOVES`;
+
+export interface ShiftMetrics {
+  ordersOpened: number;
+  ordersClosed: number;
+  /** null until an order has closed in the window. */
+  medianMinutesToDeliver: number | null;
+  parBreaches: number;
+  pumpMoves: number;
+}
+
+export interface ShiftSummary {
+  events: number;
+  metrics: ShiftMetrics;
+  /** AI_SUMMARIZE_AGG prose; the metrics are the facts. */
+  summary: string;
+}
+
+function toMetrics(row: (string | null)[] | undefined): ShiftMetrics {
+  const [opened, closed, median, breaches, moves] = row ?? [];
+  return {
+    ordersOpened: Number(opened ?? 0),
+    ordersClosed: Number(closed ?? 0),
+    medianMinutesToDeliver: median == null ? null : Number(median),
+    parBreaches: Number(breaches ?? 0),
+    pumpMoves: Number(moves ?? 0),
+  };
+}
 
 function send(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -108,13 +147,17 @@ export async function ask(sf: Snowflake, hospitalId: string, question: string): 
   return { ...result, columns, rows: rows.slice(0, MAX_ROWS) };
 }
 
-export async function summarize(
-  sf: Snowflake,
-  hospitalId: string,
-): Promise<{ events: number; summary: string }> {
-  const { rows } = await sf.query(SUMMARY_SQL, [hospitalId]);
-  const [events, summary] = rows[0] ?? ['0', null];
-  return { events: Number(events ?? 0), summary: summary ?? '' };
+export async function summarize(sf: Snowflake, hospitalId: string): Promise<ShiftSummary> {
+  const [metrics, prose] = await Promise.all([
+    sf.query(METRICS_SQL, Array<string>(5).fill(hospitalId)),
+    sf.query(SUMMARY_SQL, [hospitalId]),
+  ]);
+  const [events, summary] = prose.rows[0] ?? ['0', null];
+  return {
+    events: Number(events ?? 0),
+    metrics: toMetrics(metrics.rows[0]),
+    summary: summary ?? '',
+  };
 }
 
 /** Per-hospital cooldown. Returns false when this hospital called too recently. */

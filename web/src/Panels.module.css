@@ -618,3 +618,62 @@
 .insightsDialog .button:hover:not(:disabled) {
   border-color: var(--text);
 }
+
+/* Shift summary: measured stats as a grid, then the AI narrative as one short paragraph. */
+.shift {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.shiftHeading {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.shiftStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.shiftStat {
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.shiftStat dt {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.shiftStat dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shiftSub {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shiftProse {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.shiftCredit {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
