@@ -91,7 +91,7 @@ export class World {
    * keep counting.
    */
   reset(): WorldEvent[] {
-    const events: WorldEvent[] = this.activeOrders().map((order) => this.closeOrder(order));
+    const events: WorldEvent[] = this.activeOrders().map((o) => this.closeOrder(o, 'cancelled'));
     for (const initial of INITIAL_ASSETS) {
       const asset = this.requireAsset(initial.id);
       if (asset.status !== initial.status || asset.zoneId !== initial.zoneId) {
@@ -119,7 +119,7 @@ export class World {
     const order = this.requireActiveOrder(number);
     if (order.state !== 'accepted') throw new WorldError('NOT_ASSIGNED', `${number} is open`);
     const events = Array.from({ length: order.quantity }, () => this.addPump());
-    events.push(this.closeOrder(order));
+    events.push(this.closeOrder(order, 'delivered'));
     if (this.breached && this.cleanCount() > PAR.min) events.push(this.clearPar());
     return events;
   }
@@ -147,7 +147,7 @@ export class World {
 
   private recover(): WorldEvent[] {
     const unaccepted = this.activeOrders().filter((o) => o.state === 'open');
-    return [...unaccepted.map((o) => this.closeOrder(o)), this.clearPar()];
+    return [...unaccepted.map((o) => this.closeOrder(o, 'cancelled')), this.clearPar()];
   }
 
   private clearPar(): WorldEvent {
@@ -192,8 +192,9 @@ export class World {
     };
   }
 
-  private closeOrder(order: WorkOrder): WorldEvent {
+  private closeOrder(order: WorkOrder, code: NonNullable<WorkOrder['close_code']>): WorldEvent {
     order.state = 'closed';
+    order.close_code = code;
     this.orders.delete(order.number);
     return this.orderEvent(order);
   }

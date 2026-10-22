@@ -176,7 +176,7 @@ describe('World PAR + work orders', () => {
         status: 'CLEAN',
       })),
     );
-    expect(orderOf(events)).toMatchObject({ number, state: 'closed' });
+    expect(orderOf(events)).toMatchObject({ number, state: 'closed', close_code: 'delivered' });
     expect(parAlerts(events)).toEqual(['CLEARED']);
     expect(world.snapshot().par).toMatchObject({
       clean: PAR.min + RESTOCK_QUANTITY,
@@ -192,7 +192,7 @@ describe('World PAR + work orders', () => {
     world.moveAsset('IVP-103', PAR.zoneId);
 
     const events = world.evaluatePar();
-    expect(orderOf(events)).toMatchObject({ number, state: 'closed' });
+    expect(orderOf(events)).toMatchObject({ number, state: 'closed', close_code: 'cancelled' });
     expect(parAlerts(events)).toEqual(['CLEARED']);
     expect(world.snapshot().workOrders).toEqual([]);
     expect(world.snapshot().par.state).toBe('OK');
@@ -252,7 +252,7 @@ describe('World reset', () => {
     world.evaluatePar();
 
     const events = world.reset();
-    expect(orderOf(events).state).toBe('closed');
+    expect(orderOf(events)).toMatchObject({ state: 'closed', close_code: 'cancelled' });
     expect(movedIds(events)).toEqual(['IVP-101', 'IVP-102', 'IVP-103']);
     expect(world.snapshot()).toEqual(initial);
     expect(world.reset()).toEqual([]);

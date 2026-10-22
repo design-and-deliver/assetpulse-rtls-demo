@@ -43,6 +43,26 @@ function hospitalIdOf(req: http.IncomingMessage): string | null {
 }
 
 const TECH_PREFIX = '/tech';
+const TECH_NAME_PATH = '/api/tech-name';
+const DEVICE_KEY_PATTERN = /^[a-z0-9]{8,32}$/;
+
+/** `GET /api/tech-name?h=<hospital>&d=<device key>` → `{ name: "Tech 2" }`, stable per device. */
+function techNameHandler(registry: WorldRegistry) {
+  return (req: http.IncomingMessage, res: http.ServerResponse): void => {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const hospitalId = hospitalIdOf(req);
+    const deviceKey = url.searchParams.get('d') ?? '';
+    const send = (status: number, body: object) => {
+      res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
+    };
+    if (!hospitalId || !DEVICE_KEY_PATTERN.test(deviceKey)) {
+      return send(400, { error: 'h and d are required' });
+    }
+    const hub = registry.acquire(hospitalId);
+    if (!hub) return send(503, { error: 'server at world capacity' });
+    send(200, { name: hub.techName(deviceKey) });
+  };
+}
 // Same relative hop from server/src (tsx) and server/dist (built).
 const DEFAULT_WEB_DIR = fileURLToPath(new URL('../../web/dist', import.meta.url));
 const DEFAULT_TECH_DIR = fileURLToPath(new URL('../../mobile/dist', import.meta.url));
@@ -100,6 +120,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     serviceNow: options.serviceNow ?? new ServiceNowMock(),
   });
 
+  const techName = techNameHandler(registry);
   const serveStatic = staticHandler(
     options.webDir ?? DEFAULT_WEB_DIR,
     options.techDir ?? DEFAULT_TECH_DIR,
@@ -118,6 +139,8 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
       return;
     }
     if (req.url?.startsWith(INSIGHTS_PREFIX)) return insights(req, res);
+    if (req.method === 'GET' && req.url?.startsWith(`${TECH_NAME_PATH}?`))
+      return techName(req, res);
     serveStatic(req, res);
   });
   const wss = new WebSocketServer({ server, path: '/ws' });

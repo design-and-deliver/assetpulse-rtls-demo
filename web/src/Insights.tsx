@@ -17,7 +17,7 @@ interface ShiftSummary {
   events: number;
   metrics: {
     ordersOpened: number;
-    ordersClosed: number;
+    ordersDelivered: number;
     medianMinutesToDeliver: number | null;
     parBreaches: number;
     pumpMoves: number;
@@ -39,7 +39,7 @@ function Summary({ data }: { data: ShiftSummary }) {
   const m = data.metrics;
   const stats: [string, string][] = [
     ['Orders opened', String(m.ordersOpened)],
-    ['Orders closed', String(m.ordersClosed)],
+    ['Orders delivered', String(m.ordersDelivered)],
     ['Median page to delivery', duration(m.medianMinutesToDeliver)],
     ['Shelf hit minimum', String(m.parBreaches)],
     ['Pump moves', String(m.pumpMoves)],

@@ -43,17 +43,17 @@ const WINDOW = `DATEADD(hour, -12, CURRENT_TIMESTAMP())`;
 const METRICS_SQL = `
 SELECT
   (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND OPENED_AT >= ${WINDOW}) AS ORDERS_OPENED,
-  (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND CLOSED_AT >= ${WINDOW}) AS ORDERS_CLOSED,
+  (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND DELIVERED_AT >= ${WINDOW}) AS ORDERS_DELIVERED,
   (SELECT MEDIAN(MINUTES_TO_DELIVER) FROM WORK_ORDERS
-     WHERE HOSPITAL_ID = ? AND CLOSED_AT >= ${WINDOW}) AS MEDIAN_MINUTES_TO_DELIVER,
+     WHERE HOSPITAL_ID = ? AND DELIVERED_AT >= ${WINDOW}) AS MEDIAN_MINUTES_TO_DELIVER,
   (SELECT COUNT(*) FROM PAR_ALERTS
      WHERE HOSPITAL_ID = ? AND STATE = 'BREACH' AND EVENT_TS >= ${WINDOW}) AS PAR_BREACHES,
   (SELECT COUNT(*) FROM ASSET_MOVES WHERE HOSPITAL_ID = ? AND EVENT_TS >= ${WINDOW}) AS PUMP_MOVES`;
 
 export interface ShiftMetrics {
   ordersOpened: number;
-  ordersClosed: number;
-  /** null until an order has closed in the window. */
+  ordersDelivered: number;
+  /** null until an order has been delivered in the window. */
   medianMinutesToDeliver: number | null;
   parBreaches: number;
   pumpMoves: number;
@@ -67,10 +67,10 @@ export interface ShiftSummary {
 }
 
 function toMetrics(row: (string | null)[] | undefined): ShiftMetrics {
-  const [opened, closed, median, breaches, moves] = row ?? [];
+  const [opened, delivered, median, breaches, moves] = row ?? [];
   return {
     ordersOpened: Number(opened ?? 0),
-    ordersClosed: Number(closed ?? 0),
+    ordersDelivered: Number(delivered ?? 0),
     medianMinutesToDeliver: median == null ? null : Number(median),
     parBreaches: Number(breaches ?? 0),
     pumpMoves: Number(moves ?? 0),

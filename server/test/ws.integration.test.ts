@@ -221,3 +221,23 @@ describe('WorldRegistry capacity', () => {
     expect(registry.get('bbbbbbbb')).toBeDefined();
   });
 });
+
+describe('tech names', () => {
+  const nameOf = async (h: string, d: string) => {
+    const res = await fetch(`http://localhost:${app.port}/api/tech-name?h=${h}&d=${d}`);
+    return { status: res.status, body: (await res.json()) as { name?: string } };
+  };
+
+  it('numbers devices per hospital in first-seen order, and a device keeps its name', async () => {
+    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Tech 1' });
+    expect((await nameOf(H1, 'phonedevice01')).body).toEqual({ name: 'Tech 2' });
+    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Tech 1' });
+    expect((await nameOf(H2, 'phonedevice01')).body).toEqual({ name: 'Tech 1' });
+  });
+
+  it('rejects a missing hospital or a malformed device key', async () => {
+    expect((await nameOf('bad', 'pagerdevice01')).status).toBe(400);
+    expect((await nameOf(H1, 'short')).status).toBe(400);
+    expect((await nameOf(H1, 'NOT-a-key!!')).status).toBe(400);
+  });
+});

@@ -10,7 +10,10 @@ description: >
 
 tables:
   - name: work_orders
-    description: One row per restock work order, with when it was opened, accepted, and closed.
+    description: >
+      One row per restock work order, with when it was opened, accepted, and closed, and how it
+      ended. A closed order was either DELIVERED (a tech restocked the shelf) or CANCELLED (the
+      shelf recovered before anyone accepted it). Delivery times count delivered orders only.
     base_table: { database: ASSETPULSE, schema: APP, table: WORK_ORDERS }
     dimensions:
       - name: hospital_id
@@ -29,6 +32,12 @@ tables:
       - name: location
         expr: LOCATION
         data_type: VARCHAR
+      - name: close_code
+        expr: CLOSE_CODE
+        data_type: VARCHAR
+        description: How a closed order ended. Null while the order is still open or accepted.
+        sample_values: [DELIVERED, CANCELLED]
+        synonyms: [outcome, resolution]
     time_dimensions:
       - name: opened_at
         expr: OPENED_AT
@@ -40,7 +49,16 @@ tables:
       - name: closed_at
         expr: CLOSED_AT
         data_type: TIMESTAMP_TZ
-        synonyms: [delivered at, completed at]
+        description: When the order closed, delivered or cancelled.
+      - name: delivered_at
+        expr: DELIVERED_AT
+        data_type: TIMESTAMP_TZ
+        description: When a tech delivered the pumps. Null for cancelled orders.
+        synonyms: [completed at, restocked at]
+      - name: cancelled_at
+        expr: CANCELLED_AT
+        data_type: TIMESTAMP_TZ
+        description: When the order was cancelled because the shelf recovered on its own.
     measures:
       - name: minutes_to_accept
         expr: MINUTES_TO_ACCEPT
@@ -52,7 +70,7 @@ tables:
         expr: MINUTES_TO_DELIVER
         data_type: NUMBER
         default_aggregation: avg
-        description: Minutes from the page to the pumps being delivered (order closed).
+        description: Minutes from the page to the pumps being delivered. Null for cancelled orders.
         synonyms: [page to delivery, turnaround, time to restock]
       - name: quantity
         expr: QUANTITY
@@ -117,7 +135,7 @@ verified_queries:
     question: Median minutes from page to delivery, by tech
     sql: >
       SELECT tech, MEDIAN(minutes_to_deliver) AS median_minutes, COUNT(*) AS orders
-      FROM __work_orders WHERE hospital_id = 'hosp0001' AND closed_at IS NOT NULL
+      FROM __work_orders WHERE hospital_id = 'hosp0001' AND delivered_at IS NOT NULL
       GROUP BY tech ORDER BY median_minutes
   - name: breaches_today
     question: How many times did the shelf drop to its minimum today?

@@ -101,7 +101,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
             events: 18,
             metrics: {
               ordersOpened: 2,
-              ordersClosed: 2,
+              ordersDelivered: 2,
               medianMinutesToDeliver: 0.07,
               parBreaches: 2,
               pumpMoves: 12,

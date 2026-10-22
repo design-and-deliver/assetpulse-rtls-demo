@@ -28,13 +28,17 @@ CREATE TABLE IF NOT EXISTS EVENTS (
   LOADED_AT   TIMESTAMP_TZ DEFAULT CURRENT_TIMESTAMP()
 );
 
--- One row per work order: when it was opened, accepted, and closed, and by whom.
+-- One row per work order: when it was opened, accepted, and closed, by whom, and how it ended.
+-- A close is DELIVERED (pumps restocked) or CANCELLED (the shelf recovered first, or a reset);
+-- only deliveries count toward delivery times. Rows from before close_code existed: an accepted
+-- order was delivered, an unaccepted one was cancelled.
 CREATE OR REPLACE VIEW WORK_ORDERS AS
 WITH changes AS (
   SELECT HOSPITAL_ID, EVENT_TS,
          PAYLOAD:order:number::STRING      AS ORDER_NUMBER,
          PAYLOAD:order:state::STRING       AS STATE,
          PAYLOAD:order:assigned_to::STRING AS TECH,
+         PAYLOAD:order:close_code::STRING  AS CLOSE_CODE,
          PAYLOAD:order:quantity::NUMBER    AS QUANTITY,
          PAYLOAD:order:location::STRING    AS LOCATION
   FROM EVENTS WHERE EVENT_TYPE = 'work_order'
@@ -44,15 +48,19 @@ orders AS (
          MAX(LOCATION) AS LOCATION,
          MAX(QUANTITY) AS QUANTITY,
          MAX(TECH)     AS TECH,
+         UPPER(COALESCE(MAX(CLOSE_CODE), IFF(MAX(TECH) IS NULL, 'cancelled', 'delivered'))) AS CLOSE_CODE_RAW,
          MIN(IFF(STATE = 'open', EVENT_TS, NULL))     AS OPENED_AT,
          MIN(IFF(STATE = 'accepted', EVENT_TS, NULL)) AS ACCEPTED_AT,
          MIN(IFF(STATE = 'closed', EVENT_TS, NULL))   AS CLOSED_AT
   FROM changes
   GROUP BY HOSPITAL_ID, ORDER_NUMBER
 )
-SELECT *,
-       DATEDIFF('second', OPENED_AT, ACCEPTED_AT) / 60.0 AS MINUTES_TO_ACCEPT,
-       DATEDIFF('second', OPENED_AT, CLOSED_AT) / 60.0   AS MINUTES_TO_DELIVER
+SELECT HOSPITAL_ID, ORDER_NUMBER, LOCATION, QUANTITY, TECH, OPENED_AT, ACCEPTED_AT, CLOSED_AT,
+       IFF(CLOSED_AT IS NULL, NULL, CLOSE_CODE_RAW)                  AS CLOSE_CODE,  -- DELIVERED | CANCELLED
+       IFF(CLOSE_CODE_RAW = 'DELIVERED', CLOSED_AT, NULL)           AS DELIVERED_AT,
+       IFF(CLOSE_CODE_RAW = 'CANCELLED', CLOSED_AT, NULL)           AS CANCELLED_AT,
+       DATEDIFF('second', OPENED_AT, ACCEPTED_AT) / 60.0            AS MINUTES_TO_ACCEPT,
+       DATEDIFF('second', OPENED_AT, DELIVERED_AT) / 60.0           AS MINUTES_TO_DELIVER
 FROM orders;
 
 -- Shelf PAR breaches and recoveries.

@@ -57,6 +57,8 @@ export const workOrderSchema = z.object({
   priority: z.number().int(),
   quantity: z.number().int().nonnegative(),
   opened_at: z.number(),
+  /** Set when closed: `delivered` (pumps restocked) or `cancelled` (shelf recovered, or a reset). */
+  close_code: z.enum(['delivered', 'cancelled']).optional(),
 });
 export type WorkOrder = z.infer<typeof workOrderSchema>;
 

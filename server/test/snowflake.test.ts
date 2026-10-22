@@ -247,7 +247,7 @@ describe('insights', () => {
       summary: 'Quiet shift.',
       metrics: {
         ordersOpened: 2,
-        ordersClosed: 1,
+        ordersDelivered: 1,
         medianMinutesToDeliver: 0.75,
         parBreaches: 2,
         pumpMoves: 6,
@@ -259,7 +259,7 @@ describe('insights', () => {
     }
   });
 
-  it('reports no median until an order has closed', async () => {
+  it('reports no median until an order has been delivered', async () => {
     const sf = {
       askAnalyst: vi.fn(),
       query: vi.fn(async () => ({ columns: [], rows: [['0', '0', null, '0', '0']] })),

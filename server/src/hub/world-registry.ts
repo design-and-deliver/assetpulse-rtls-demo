@@ -84,6 +84,8 @@ export class WorldHub {
   private flushTimer: NodeJS.Timeout | null = null;
   /** When the last socket left; null while any socket is attached. */
   idleSince: number | null;
+  /** Device key → "Tech N", numbered in first-seen order, so each device keeps one name. */
+  private readonly techNames = new Map<string, string>();
 
   constructor(
     readonly hospitalId: string,
@@ -93,6 +95,16 @@ export class WorldHub {
     this.log = new EventLog({ capacity: deps.eventLogSize, now: deps.now });
     this.simulator = new Simulator(this.world, { seed: deps.seed });
     this.idleSince = deps.now();
+  }
+
+  /** The demo has no login: a device's stored key earns the next "Tech N", then keeps it. */
+  techName(deviceKey: string): string {
+    let name = this.techNames.get(deviceKey);
+    if (!name) {
+      name = `Tech ${this.techNames.size + 1}`;
+      this.techNames.set(deviceKey, name);
+    }
+    return name;
   }
 
   get socketCount(): number {
