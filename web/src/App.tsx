@@ -2,6 +2,7 @@ import { INITIAL_ASSETS, PAR } from '@assetpulse/protocol';
 import { useSyncExternalStore } from 'react';
 import styles from './App.module.css';
 import { ConnectionPill } from './ConnectionPill';
+import { Insights } from './Insights';
 import type { Pager } from './pager';
 import { Stock } from './Stock';
 import type { ConsoleStore } from './store';
@@ -13,7 +14,7 @@ import { cleanCount } from './world';
 /** Pumps a fresh shelf must lose to reach its minimum and page a tech. */
 const TO_BREACH = INITIAL_ASSETS.length - PAR.min;
 
-/** One column, one story: shelf → rooms → pager → the wire underneath it all. */
+/** One column, one story: shelf → rooms → pager → the wire underneath it all → (when on) its history. */
 export function App({
   store,
   pager,
@@ -57,6 +58,7 @@ export function App({
         />
         <TechPager pager={pager} hospitalId={hospitalId} />
         <WireDrawer stats={store.client.stats} connection={connection} onKill={store.killNetwork} />
+        <Insights hospitalId={hospitalId} />
       </main>
       <Toasts toasts={toasts} onDismiss={store.dismissToast} />
     </div>

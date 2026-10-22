@@ -12,6 +12,26 @@ export interface HistoryRow {
   PAYLOAD: Record<string, unknown>;
 }
 
+/** Anything the publish path can hand a sequenced event to. `record` must never throw or block. */
+export interface EventSink {
+  record(hospitalId: string, event: SequencedEvent): void;
+  /** Resolves once every row recorded so far has been handed off. */
+  flush(): Promise<void>;
+}
+
+/** Fans one event out to several sinks; one sink failing never stops the others. */
+export class TeeSink implements EventSink {
+  constructor(private readonly sinks: readonly EventSink[]) {}
+
+  record(hospitalId: string, event: SequencedEvent): void {
+    for (const sink of this.sinks) sink.record(hospitalId, event);
+  }
+
+  async flush(): Promise<void> {
+    await Promise.allSettled(this.sinks.map((sink) => sink.flush()));
+  }
+}
+
 /** `server/data/history` — the same relative hop from `src/adapters` and `dist/adapters`. */
 export const DEFAULT_HISTORY_DIR = fileURLToPath(new URL('../../data/history', import.meta.url));
 
@@ -36,7 +56,7 @@ export function toHistoryRow(hospitalId: string, event: SequencedEvent): History
  * synchronous — it queues the row and returns — so the simulation tick never waits on disk.
  * The app never reads these files back.
  */
-export class HistorySink {
+export class HistorySink implements EventSink {
   private queue: HistoryRow[] = [];
   private draining: Promise<void> | null = null;
 

@@ -12,7 +12,7 @@ import {
   type ServerFrame,
   type Topic,
 } from '@assetpulse/protocol';
-import type { HistorySink } from '../adapters/history-sink.js';
+import type { EventSink } from '../adapters/history-sink.js';
 import type { ServiceNowMock } from '../adapters/servicenow-mock.js';
 import { CommandCache, type Ack } from '../world/command-cache.js';
 import { EventLog } from '../world/event-log.js';
@@ -41,7 +41,7 @@ const EVENT_TOPICS: Record<SequencedEvent['type'], readonly Topic[]> = {
 };
 
 export interface HubDeps {
-  sink: HistorySink;
+  sink: EventSink;
   serviceNow: ServiceNowMock;
   now: () => number;
   tickMs: number;
@@ -240,7 +240,7 @@ export class WorldHub {
 }
 
 export interface RegistryOptions {
-  sink: HistorySink;
+  sink: EventSink;
   serviceNow: ServiceNowMock;
   now?: () => number;
   maxWorlds?: number;

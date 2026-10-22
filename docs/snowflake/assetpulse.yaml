@@ -1,0 +1,126 @@
+# Cortex Analyst semantic model for AssetPulse. Upload to @ASSETPULSE.APP.MODELS (setup.sql).
+# Analyst writes SQL only against what is described here, so every column a question might need
+# has a plain-English description and synonyms.
+name: assetpulse
+description: >
+  Event history from a hospital's infusion-pump restocking floor. A clean-utility shelf holds
+  pumps; when the clean count drops to its PAR minimum, a restock work order opens and a tech is
+  paged, accepts it, and delivers pumps back to the shelf. Every table has HOSPITAL_ID; each
+  visitor's sandbox is one hospital, so always filter by HOSPITAL_ID.
+
+tables:
+  - name: work_orders
+    description: One row per restock work order, with when it was opened, accepted, and closed.
+    base_table: { database: ASSETPULSE, schema: APP, table: WORK_ORDERS }
+    dimensions:
+      - name: hospital_id
+        expr: HOSPITAL_ID
+        data_type: VARCHAR
+        description: The hospital sandbox id. Always filter on it.
+      - name: order_number
+        expr: ORDER_NUMBER
+        data_type: VARCHAR
+        synonyms: [work order, ticket, WO]
+      - name: tech
+        expr: TECH
+        data_type: VARCHAR
+        description: The tech who accepted the order (null until accepted).
+        synonyms: [technician, assignee, assigned to]
+      - name: location
+        expr: LOCATION
+        data_type: VARCHAR
+    time_dimensions:
+      - name: opened_at
+        expr: OPENED_AT
+        data_type: TIMESTAMP_TZ
+        synonyms: [paged at, created at]
+      - name: accepted_at
+        expr: ACCEPTED_AT
+        data_type: TIMESTAMP_TZ
+      - name: closed_at
+        expr: CLOSED_AT
+        data_type: TIMESTAMP_TZ
+        synonyms: [delivered at, completed at]
+    measures:
+      - name: minutes_to_accept
+        expr: MINUTES_TO_ACCEPT
+        data_type: NUMBER
+        default_aggregation: avg
+        description: Minutes from the page (order opened) to a tech accepting it.
+        synonyms: [response time, time to accept]
+      - name: minutes_to_deliver
+        expr: MINUTES_TO_DELIVER
+        data_type: NUMBER
+        default_aggregation: avg
+        description: Minutes from the page to the pumps being delivered (order closed).
+        synonyms: [page to delivery, turnaround, time to restock]
+      - name: quantity
+        expr: QUANTITY
+        data_type: NUMBER
+        default_aggregation: sum
+        description: Pumps requested on the order.
+
+  - name: par_alerts
+    description: Each time the shelf's clean count hit its PAR minimum (BREACH) or recovered (CLEARED).
+    base_table: { database: ASSETPULSE, schema: APP, table: PAR_ALERTS }
+    dimensions:
+      - name: hospital_id
+        expr: HOSPITAL_ID
+        data_type: VARCHAR
+      - name: state
+        expr: STATE
+        data_type: VARCHAR
+        description: BREACH when the shelf dropped to its minimum, CLEARED when it recovered.
+        sample_values: [BREACH, CLEARED]
+        synonyms: [shelf low, stockout, dropped to minimum]
+      - name: zone_id
+        expr: ZONE_ID
+        data_type: VARCHAR
+    time_dimensions:
+      - name: event_ts
+        expr: EVENT_TS
+        data_type: TIMESTAMP_TZ
+    measures:
+      - name: clean_count
+        expr: CLEAN_COUNT
+        data_type: NUMBER
+        default_aggregation: min
+
+  - name: asset_moves
+    description: Every pump move between zones (shelf, patient rooms).
+    base_table: { database: ASSETPULSE, schema: APP, table: ASSET_MOVES }
+    dimensions:
+      - name: hospital_id
+        expr: HOSPITAL_ID
+        data_type: VARCHAR
+      - name: asset_id
+        expr: ASSET_ID
+        data_type: VARCHAR
+        synonyms: [pump, device]
+      - name: from_zone
+        expr: FROM_ZONE
+        data_type: VARCHAR
+      - name: to_zone
+        expr: TO_ZONE
+        data_type: VARCHAR
+        synonyms: [room, destination]
+      - name: status
+        expr: STATUS
+        data_type: VARCHAR
+    time_dimensions:
+      - name: event_ts
+        expr: EVENT_TS
+        data_type: TIMESTAMP_TZ
+
+verified_queries:
+  - name: median_delivery_by_tech
+    question: Median minutes from page to delivery, by tech
+    sql: >
+      SELECT tech, MEDIAN(minutes_to_deliver) AS median_minutes, COUNT(*) AS orders
+      FROM __work_orders WHERE hospital_id = 'hosp0001' AND closed_at IS NOT NULL
+      GROUP BY tech ORDER BY median_minutes
+  - name: breaches_today
+    question: How many times did the shelf drop to its minimum today?
+    sql: >
+      SELECT COUNT(*) AS breaches FROM __par_alerts
+      WHERE hospital_id = 'hosp0001' AND state = 'BREACH' AND event_ts >= CURRENT_DATE()
