@@ -134,7 +134,11 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
           placeholder="e.g. Median minutes from page to delivery, by tech"
           onChange={(e) => setQuestion(e.target.value)}
         />
-        <button type="submit" className={styles.button} disabled={busy || !question.trim()}>
+        <button
+          type="submit"
+          className={`${styles.button} ${styles.insightsPrimary}`}
+          disabled={busy || !question.trim()}
+        >
           {busy ? 'Asking…' : 'Ask'}
         </button>
       </form>
@@ -184,6 +188,11 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   if (!enabled) return null;
   const close = () => dialog.current?.close();
+  /** showModal() would focus the first control (×); start on the question box instead. */
+  const open = () => {
+    dialog.current?.showModal();
+    dialog.current?.querySelector('input')?.focus();
+  };
   /** A click on the backdrop lands on the <dialog> itself; clicks inside land on its children. */
   const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
     if (e.target === e.currentTarget) close();
@@ -191,12 +200,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
 
   return (
     <>
-      <button
-        type="button"
-        className={appStyles.button}
-        aria-haspopup="dialog"
-        onClick={() => dialog.current?.showModal()}
-      >
+      <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
         <span aria-hidden="true">&#10022;</span> Insights
       </button>
       <dialog
@@ -205,7 +209,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
         aria-labelledby="insights-h"
         onClick={onBackdrop}
       >
-        <header className={styles.insightsDialogHead}>
+        <div className={styles.insightsDialogHead}>
           <p className={styles.insightsKicker}>Snowflake Cortex</p>
           <h2 id="insights-h" className={styles.insightsTitle}>
             Insights
@@ -213,7 +217,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
           <button type="button" className={styles.insightsClose} aria-label="Close" onClick={close}>
             &times;
           </button>
-        </header>
+        </div>
         <InsightsBody hospitalId={hospitalId} />
       </dialog>
     </>
