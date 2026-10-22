@@ -495,6 +495,11 @@
   margin: 0 0 8px;
 }
 
+.insightsTableWrap:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .insightsTable {
   border-collapse: collapse;
   font-size: 13px;
@@ -607,15 +612,18 @@
 }
 
 /* Disabled stays legible (text 4.5:1 on the surface), just quieter than enabled. */
-.insightsDialog .button:disabled {
+.insightsDialog .button:disabled,
+.insightsDialog .button[aria-disabled='true'],
+.insightsChip[aria-disabled='true'] {
   opacity: 1;
   color: var(--text-muted);
   background: var(--bg);
   border-color: var(--border);
+  cursor: default;
 }
 
-.insightsChip:hover:not(:disabled),
-.insightsDialog .button:hover:not(:disabled) {
+.insightsChip:hover:not([aria-disabled='true']),
+.insightsDialog .button:hover:not(:disabled, [aria-disabled='true']) {
   border-color: var(--text);
 }
 

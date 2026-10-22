@@ -72,5 +72,60 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
       await expectNoViolations(page, 'dialog');
     });
+
+    test('insights dialog with answers', async ({ page }) => {
+      // Canned Cortex replies, shaped like the server's, so the answered markup gets scanned too.
+      let releaseAsk = () => {};
+      const askHeld = new Promise<void>((resolve) => (releaseAsk = resolve));
+      await page.route('**/api/insights/status', (route) =>
+        route.fulfill({ json: { enabled: true } }),
+      );
+      await page.route('**/api/insights/ask**', async (route) => {
+        await askHeld;
+        await route.fulfill({
+          json: {
+            text: 'This is our interpretation of your question: median minutes by tech.',
+            sql: 'SELECT tech, MEDIAN(minutes) AS median_minutes FROM orders GROUP BY tech',
+            columns: ['TECH', 'MEDIAN_MINUTES', 'ORDERS'],
+            rows: [
+              [null, '0.0667', '2'],
+              ['T-07', '1.5', '3'],
+            ],
+            suggestions: [],
+          },
+        });
+      });
+      await page.route('**/api/insights/summary**', (route) =>
+        route.fulfill({
+          json: {
+            events: 18,
+            metrics: {
+              ordersOpened: 2,
+              ordersClosed: 2,
+              medianMinutesToDeliver: 0.07,
+              parBreaches: 2,
+              pumpMoves: 12,
+            },
+            summary:
+              'Three pumps moved to patient rooms, the shelf hit its minimum, and a tech restocked it.',
+          },
+        }),
+      );
+      await page.goto(`/?h=${hospital}`);
+      await page.getByRole('button', { name: /Insights/ }).click();
+      const chip = page.getByRole('button', { name: /by tech$/ });
+      await chip.focus();
+      await page.keyboard.press('Enter');
+      // While Cortex works, the pressed chip keeps keyboard focus (it must not go disabled).
+      await expect(chip).toHaveAttribute('aria-disabled', 'true');
+      await expect(chip).toBeFocused();
+      releaseAsk();
+      await expect(page.getByRole('region', { name: 'Query results' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Median minutes' })).toBeVisible();
+      await page.getByRole('button', { name: 'Shift summary' }).click();
+      await expect(page.getByRole('heading', { name: 'Last 12 hours' })).toBeVisible();
+      await page.getByText('SQL Cortex Analyst wrote').click();
+      await expectNoViolations(page, 'dialog');
+    });
   });
 }

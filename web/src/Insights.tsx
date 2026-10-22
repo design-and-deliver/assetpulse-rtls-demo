@@ -94,16 +94,23 @@ function useEnabled(): boolean {
   return enabled;
 }
 
+/** SQL column names (MEDIAN_MINUTES) as words, so a screen reader doesn't spell out underscores. */
+function columnLabel(column: string): string {
+  const words = column.toLowerCase().replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function ResultTable({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
   if (columns.length === 0) return null;
+  // A wide result scrolls sideways, so the wrapper takes focus for keyboard scrolling.
   return (
-    <div className={styles.insightsTableWrap}>
+    <div className={styles.insightsTableWrap} tabIndex={0} role="region" aria-label="Query results">
       <table className={styles.insightsTable}>
         <thead>
           <tr>
             {columns.map((c) => (
               <th key={c} scope="col">
-                {c}
+                {columnLabel(c)}
               </th>
             ))}
           </tr>
@@ -112,7 +119,14 @@ function ResultTable({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
           {rows.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
-                <td key={j}>{cell ?? '—'}</td>
+                <td key={j}>
+                  {cell ?? (
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <span className={styles.srOnly}>none</span>
+                    </>
+                  )}
+                </td>
               ))}
             </tr>
           ))}
@@ -147,7 +161,12 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
   const [summary, setSummary] = useState<ShiftSummary | null>(null);
 
   const h = encodeURIComponent(hospitalId);
+  /**
+   * Busy buttons use aria-disabled, not disabled: disabling the focused button would drop a
+   * keyboard user's focus out of it. A click while busy is ignored here instead.
+   */
   async function run(work: () => Promise<void>) {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -194,7 +213,8 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
         <button
           type="submit"
           className={`${styles.button} ${styles.insightsPrimary}`}
-          disabled={busy || !question.trim()}
+          disabled={!question.trim()}
+          aria-disabled={busy || undefined}
         >
           {busy ? 'Asking…' : 'Ask'}
         </button>
@@ -205,8 +225,9 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
             key={q}
             type="button"
             className={styles.insightsChip}
-            disabled={busy}
+            aria-disabled={busy || undefined}
             onClick={() => {
+              if (busy) return;
               setQuestion(q);
               void ask(q);
             }}
@@ -216,6 +237,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
         ))}
       </div>
       <div aria-live="polite">
+        {busy && <p className={styles.srOnly}>Asking Snowflake…</p>}
         {error && <p className={styles.insightsError}>{error}</p>}
         {summary && <Summary data={summary} />}
         {answer && <Answer result={answer} />}
@@ -224,7 +246,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
         <button
           type="button"
           className={styles.button}
-          disabled={busy}
+          aria-disabled={busy || undefined}
           onClick={() => void summarize()}
         >
           Shift summary
