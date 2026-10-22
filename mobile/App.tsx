@@ -27,8 +27,10 @@ export default function App() {
 
   if (!hospitalId) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.title}>AssetPulse · Tech</Text>
+      <View style={[styles.container, styles.centered]} role="main">
+        <Text style={styles.title} role="heading" aria-level={1}>
+          AssetPulse · Tech
+        </Text>
         <Text style={styles.status}>{LABEL[status]}</Text>
         <StatusBar style={bar} />
       </View>
@@ -36,7 +38,7 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} role="main">
       {DROPPED.has(status) && (
         <View style={styles.banner} accessibilityRole="alert">
           <Text style={styles.bannerText}>
@@ -45,7 +47,9 @@ export default function App() {
         </View>
       )}
       <View style={styles.header}>
-        <Text style={styles.title}>AssetPulse · Tech</Text>
+        <Text style={styles.title} role="heading" aria-level={1}>
+          AssetPulse · Tech
+        </Text>
         <Text style={styles.meta}>
           {techId} · Hospital {hospitalId} ·{' '}
           <Text style={live ? styles.live : styles.status}>{LABEL[status]}</Text>

@@ -18,7 +18,7 @@
   --on-status: #ffffff;
   --offline: #6b7280;
 
-  --ok: #2f7d6d;
+  --ok: #28705f; /* 5.1:1 on --ok-soft (Buffer OK badge); was #2f7d6d at 4.28:1 */
   --ok-soft: #e6f2ef;
   --alert: #c0392b;
   --alert-soft: #fbeceb;
