@@ -14,6 +14,7 @@ import { WorldRegistry, type RegistryOptions } from './hub/world-registry.js';
 import { loadSnowflakeConfig, type SnowflakeConfig } from './snowflake/config.js';
 import { INSIGHTS_PREFIX, insightsHandler } from './snowflake/insights.js';
 import { SnowflakeRest } from './snowflake/rest.js';
+import { checkSchema } from './snowflake/schema.js';
 
 export interface AppOptions extends Partial<RegistryOptions> {
   port?: number;
@@ -97,9 +98,15 @@ function staticHandler(webDir: string, techDir: string) {
 /** One HTTP server; `/ws` shares its port (App Service exposes exactly one). */
 /** Off unless configured. When on, events also batch to Snowflake and `/api/insights/*` answers. */
 function snowflakeLayer(config: SnowflakeConfig | null) {
-  if (!config) return { rest: null, sink: null };
+  if (!config) return { rest: null, schemaOk: () => null, sink: null };
   const rest = new SnowflakeRest(config);
-  return { rest, sink: new SnowflakeSink((statement, binds) => rest.query(statement, binds)) };
+  let schemaOk: boolean | null = null;
+  void checkSchema(rest).then((ok) => (schemaOk = ok));
+  return {
+    rest,
+    schemaOk: () => schemaOk,
+    sink: new SnowflakeSink((statement, binds) => rest.query(statement, binds)),
+  };
 }
 
 function snowflakeConfigFrom(options: AppOptions): SnowflakeConfig | null {
@@ -113,7 +120,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
   const snowflake = snowflakeLayer(snowflakeConfigFrom(options));
   const history = options.sink ?? new HistorySink();
   const sink = snowflake.sink ? new TeeSink([history, snowflake.sink]) : history;
-  const insights = insightsHandler(snowflake.rest);
+  const insights = insightsHandler(snowflake.rest, { schemaOk: snowflake.schemaOk });
   const registry = new WorldRegistry({
     ...options,
     sink,

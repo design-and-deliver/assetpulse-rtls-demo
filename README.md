@@ -106,13 +106,23 @@ npx playwright test                             # e2e loop + axe a11y gate (afte
 
 The handheld can also run as a native app: `npm start -w @assetpulse/mobile` (Expo Go).
 
-## Snowflake + Cortex sandbox (off in production)
+## Snowflake + Cortex insights
 
 An opt-in analytics layer ([ADR 0006](docs/adr/0006-snowflake-cortex-sandbox.md)): events batch
 into Snowflake every 5 s, and an **Insights** overlay (header button) uses Cortex Analyst for plain-English
 questions ("median minutes from page to delivery, by tech") and `AI_SUMMARIZE_AGG` for a shift
-summary. It stays off unless `SNOWFLAKE_ENABLED=1` and credentials are set, so the live demo is
-unchanged.
+summary. It stays off unless `SNOWFLAKE_ENABLED=1` and credentials are set.
+
+Guardrails, so a visitor sees an answer rather than an error:
+
+- **Schema check at boot.** If Snowflake is missing a column `setup.sql` defines, the server logs
+  which ones and hides the Insights button instead of failing on first use.
+- **Retry once** on transient failures (network, 5xx, a resuming warehouse); 40 s of polling.
+- **Pacing, not errors.** A second click inside the 3 s per-hospital cooldown waits it out.
+- **Spend cap.** 120 Cortex calls per hour across all hospitals.
+- **Answers, not outages.** Analyst SQL that fails in Snowflake, or a hospital with no history
+  yet, gets a plain next step in the panel.
+- **UTC sessions,** so Analyst's "today" matches how events are stored.
 
 1. Start a Snowflake trial on **Azure** (a region near the App Service, e.g. East US 2).
 2. Make a key pair for the service user (the files are git-ignored):
@@ -139,6 +149,13 @@ unchanged.
    ```
 
 5. `npm run dev:snowflake`, drag a few pumps to page a tech, wait a few seconds, then ask.
+6. Production: set the same keys as App Service application settings, with the key inline as
+   `SNOWFLAKE_PRIVATE_KEY` (`
+` escapes allowed) instead of a path.
+
+After any change to `setup.sql` or `assetpulse.yaml`, re-run it in Snowsight as ACCOUNTADMIN and
+re-upload the YAML: nothing applies them automatically, and the boot check hides Insights until
+you do.
 
 ## Repo map
 

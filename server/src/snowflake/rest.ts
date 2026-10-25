@@ -10,7 +10,10 @@ import type { SnowflakeConfig } from './config.js';
 const JWT_TTL_S = 3600; // Snowflake's maximum
 const JWT_REUSE_S = 3000; // re-sign 10 minutes before expiry
 const POLL_MS = 500;
-const POLL_TRIES = 20;
+/** 40 s of polling: a suspended warehouse resumes and Cortex AI functions can take a while. */
+const POLL_TRIES = 80;
+/** Per HTTP call, so a hung connection fails fast enough to retry. */
+const CALL_TIMEOUT_MS = 30_000;
 
 export type Fetch = typeof fetch;
 
@@ -105,9 +108,13 @@ export class SnowflakeRest {
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers: this.headers(),
+      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
     const body = (await res.json().catch(() => ({}))) as T & { message?: string };
-    if (!res.ok) throw new Error(`snowflake ${res.status}: ${body.message ?? res.statusText}`);
+    if (!res.ok) {
+      const message = `snowflake ${res.status}: ${body.message ?? res.statusText}`;
+      throw Object.assign(new Error(message), { snowflakeStatus: res.status });
+    }
     return { status: res.status, body };
   }
 
@@ -124,6 +131,9 @@ export class SnowflakeRest {
         warehouse,
         role,
         timeout: 60,
+        // Events are stored in UTC; the account default (America/Los_Angeles) would make
+        // Analyst's "today" (DATE_TRUNC of a UTC timestamp vs CURRENT_DATE) never match.
+        parameters: { timezone: 'UTC' },
       }),
     });
     for (let i = 0; status === 202 && i < POLL_TRIES; i++) {
@@ -163,4 +173,13 @@ function toBindings(binds: Bind[]): Record<string, { type: string; value: string
       { type: typeof value === 'number' ? 'FIXED' : 'TEXT', value: String(value) },
     ]),
   );
+}
+
+/**
+ * Worth one retry: network failures, timeouts, 5xx, and 429. A 4xx (bad SQL, auth, a missing
+ * column) will fail the same way again, so it is not.
+ */
+export function isTransient(err: unknown): boolean {
+  const status = (err as { snowflakeStatus?: number }).snowflakeStatus;
+  return status === undefined || status >= 500 || status === 429;
 }

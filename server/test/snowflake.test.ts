@@ -1,6 +1,8 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { FrameType, PROTOCOL_VERSION, type SequencedEvent } from '@assetpulse/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,8 +15,15 @@ import {
 } from '../src/adapters/snowflake-sink.js';
 import { startApp, type App } from '../src/app.js';
 import { loadSnowflakeConfig, type SnowflakeConfig } from '../src/snowflake/config.js';
-import { ask, refusalFor, summarize } from '../src/snowflake/insights.js';
+import {
+  ask,
+  insightsHandler,
+  refusalFor,
+  summarize,
+  type InsightsOptions,
+} from '../src/snowflake/insights.js';
 import { jwtAccount, signJwt, SnowflakeRest } from '../src/snowflake/rest.js';
+import { checkSchema, EXPECTED_COLUMNS, missingColumns } from '../src/snowflake/schema.js';
 
 const H = 'hosp0001';
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -265,6 +274,103 @@ describe('insights', () => {
       query: vi.fn(async () => ({ columns: [], rows: [['0', '0', null, '0', '0']] })),
     };
     expect((await summarize(sf, H)).metrics.medianMinutesToDeliver).toBeNull();
+  });
+});
+
+describe('schema drift check', () => {
+  const allColumns = Object.entries(EXPECTED_COLUMNS).flatMap(([table, columns]) =>
+    columns.map((column) => [table, column]),
+  );
+  const withRows = (rows: string[][]) => ({ query: vi.fn(async () => ({ columns: [], rows })) });
+
+  it('names each expected column the account lacks, e.g. a view from before a setup.sql change', async () => {
+    const stale = allColumns.filter(([t, c]) => !(t === 'WORK_ORDERS' && c === 'DELIVERED_AT'));
+    expect(await missingColumns(withRows(stale))).toEqual(['WORK_ORDERS.DELIVERED_AT']);
+  });
+
+  it('stays quiet when the schema matches', async () => {
+    const log = { warn: vi.fn() };
+    expect(await checkSchema(withRows(allColumns), log)).toBe(true);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('warns with the fix when columns are missing, and never throws when Snowflake fails', async () => {
+    const log = { warn: vi.fn() };
+    expect(await checkSchema(withRows([]), log)).toBe(false);
+    expect(log.warn.mock.calls[0]?.[0]).toMatch(/missing: EVENTS\.EVENT_TS.*re-run setup\.sql/);
+    const down = { query: vi.fn(async () => Promise.reject(new Error('unreachable'))) };
+    expect(await checkSchema(down, log)).toBeNull();
+    expect(log.warn).toHaveBeenLastCalledWith(
+      '[snowflake] could not check the schema:',
+      'unreachable',
+    );
+  });
+});
+
+describe('insights guardrails', () => {
+  const status = (code: number) =>
+    Object.assign(new Error(`snowflake ${code}`), { snowflakeStatus: code });
+  const okSummary = () => ({ columns: [], rows: [['0', '0', null, '0', '0']] });
+  let server: http.Server | undefined;
+  afterEach(() => server?.close());
+
+  async function serve(sf: Parameters<typeof insightsHandler>[0], options: InsightsOptions = {}) {
+    const handler = insightsHandler(sf, { sleep: async () => {}, ...options });
+    server = http.createServer(handler);
+    await new Promise<void>((resolve) => server!.listen(0, resolve));
+    return `http://localhost:${(server.address() as AddressInfo).port}/api/insights`;
+  }
+
+  it('turns a non-transient Analyst SQL failure into an answer, not an error', async () => {
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'sql', statement: `SELECT 1 WHERE H = '${H}'` }]),
+      query: vi.fn(async () => Promise.reject(status(422))),
+    };
+    const result = await ask(sf, H, 'Odd question');
+    expect(result.failed).toMatch(/Rephrase/);
+    expect(sf.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a transient failure once, and does not retry a 4xx', async () => {
+    const flaky = { askAnalyst: vi.fn(), query: vi.fn() };
+    flaky.query.mockRejectedValueOnce(status(503)).mockResolvedValue(okSummary());
+    let base = await serve(flaky);
+    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(200);
+    server!.close();
+
+    const broken = { askAnalyst: vi.fn(), query: vi.fn(async () => Promise.reject(status(422))) };
+    vi.spyOn(console, 'error').mockImplementationOnce(() => {});
+    base = await serve(broken);
+    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(502);
+    expect(broken.query).toHaveBeenCalledTimes(2); // the two summary statements, no retry
+  });
+
+  it('tells a quick second click how long to wait', async () => {
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    let t = 1_000;
+    const base = await serve(sf, { now: () => t });
+    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(200);
+    t += 1_000;
+    const res = await fetch(`${base}/summary?h=${H}`);
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ retryAfterMs: 2_000 });
+  });
+
+  it('caps calls per hour across every hospital', async () => {
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    const base = await serve(sf, { hourlyLimit: 2 });
+    expect((await fetch(`${base}/summary?h=aaaa0001`)).status).toBe(200);
+    expect((await fetch(`${base}/summary?h=aaaa0002`)).status).toBe(200);
+    expect((await fetch(`${base}/summary?h=aaaa0003`)).status).toBe(503);
+  });
+
+  it('hides the panel once the schema check finds drift, but not while it is unknown', async () => {
+    const sf = { askAnalyst: vi.fn(), query: vi.fn() };
+    let ok: boolean | null = null;
+    const base = await serve(sf, { schemaOk: () => ok });
+    expect(await (await fetch(`${base}/status`)).json()).toEqual({ enabled: true });
+    ok = false;
+    expect(await (await fetch(`${base}/status`)).json()).toEqual({ enabled: false });
   });
 });
 

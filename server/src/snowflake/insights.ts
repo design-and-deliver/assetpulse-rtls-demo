@@ -1,6 +1,6 @@
 import type http from 'node:http';
 import { HOSPITAL_ID_PATTERN } from '@assetpulse/protocol';
-import type { AnalystContent, QueryResult, SnowflakeRest } from './rest.js';
+import { isTransient, type AnalystContent, type QueryResult, type SnowflakeRest } from './rest.js';
 
 /**
  * `/api/insights/*`: Cortex over this hospital's event history.
@@ -16,6 +16,13 @@ const MAX_QUESTION = 300;
 const MAX_ROWS = 50;
 /** Each Cortex call spends credits, so one hospital gets one call per window. */
 const COOLDOWN_MS = 3_000;
+/**
+ * The public demo's credit ceiling across every hospital: hospital ids are free to mint, so the
+ * per-hospital cooldown alone does not bound spend.
+ */
+const HOURLY_LIMIT = 120;
+const HOUR_MS = 3_600_000;
+const RETRY_DELAY_MS = 1_000;
 
 type Snowflake = Pick<SnowflakeRest, 'query' | 'askAnalyst'>;
 type Handler = (req: http.IncomingMessage, res: http.ServerResponse) => void;
@@ -28,6 +35,8 @@ export interface AskResult {
   suggestions: string[];
   /** Set when Analyst wrote SQL we refused to run. */
   refused?: string;
+  /** Set when Analyst's SQL failed in Snowflake (not a transient error): the answer, not an outage. */
+  failed?: string;
 }
 
 const SUMMARY_SQL = `
@@ -100,6 +109,14 @@ function readBody(req: http.IncomingMessage): Promise<string> {
   });
 }
 
+/** A request stream can be read once; a retried handler gets the same promise back. */
+const bodies = new WeakMap<http.IncomingMessage, Promise<string>>();
+function bodyOf(req: http.IncomingMessage): Promise<string> {
+  let body = bodies.get(req);
+  if (!body) bodies.set(req, (body = readBody(req)));
+  return body;
+}
+
 /** A client mistake: answered with 400 and a plain message, never logged as a Snowflake failure. */
 function badRequest(): Error {
   return Object.assign(new Error('bad request'), { status: 400 });
@@ -128,6 +145,25 @@ function pick(content: AnalystContent[], type: string): AnalystContent | undefin
   return content.find((item) => item.type === type);
 }
 
+/** Runs Analyst's SQL. A non-transient failure is part of the answer, not an outage. */
+async function runAnalystSql(
+  sf: Snowflake,
+  sql: string,
+): Promise<Pick<AskResult, 'columns' | 'rows' | 'failed'>> {
+  try {
+    const { columns, rows }: QueryResult = await sf.query(sql);
+    return { columns, rows: rows.slice(0, MAX_ROWS) };
+  } catch (err) {
+    if (isTransient(err)) throw err;
+    console.warn('[insights] Analyst SQL did not run:', err instanceof Error ? err.message : err);
+    return {
+      columns: [],
+      rows: [],
+      failed: 'Rephrase the question to try again; this one did not run.',
+    };
+  }
+}
+
 export async function ask(sf: Snowflake, hospitalId: string, question: string): Promise<AskResult> {
   const content = await sf.askAnalyst(
     `${question}\n\nOnly use rows where HOSPITAL_ID = '${hospitalId}'.`,
@@ -143,8 +179,7 @@ export async function ask(sf: Snowflake, hospitalId: string, question: string): 
   if (!sql) return result;
   const refused = refusalFor(sql, hospitalId);
   if (refused) return { ...result, refused };
-  const { columns, rows }: QueryResult = await sf.query(sql);
-  return { ...result, columns, rows: rows.slice(0, MAX_ROWS) };
+  return { ...result, ...(await runAnalystSql(sf, sql)) };
 }
 
 export async function summarize(sf: Snowflake, hospitalId: string): Promise<ShiftSummary> {
@@ -160,26 +195,62 @@ export async function summarize(sf: Snowflake, hospitalId: string): Promise<Shif
   };
 }
 
-/** Per-hospital cooldown. Returns false when this hospital called too recently. */
+/** Per-hospital cooldown: 0 when admitted, else how long until this hospital may call again. */
 function cooldown(now: () => number) {
   const last = new Map<string, number>();
-  return (hospitalId: string): boolean => {
+  return (hospitalId: string): number => {
     const t = now();
-    if (t - (last.get(hospitalId) ?? -Infinity) < COOLDOWN_MS) return false;
+    const wait = (last.get(hospitalId) ?? -Infinity) + COOLDOWN_MS - t;
+    if (wait > 0) return wait;
     last.set(hospitalId, t);
+    return 0;
+  };
+}
+
+/** Sliding one-hour window across all hospitals. Returns false once the hour's budget is spent. */
+function hourlyBudget(now: () => number, limit: number) {
+  const calls: number[] = [];
+  return (): boolean => {
+    const t = now();
+    while (calls.length > 0 && calls[0]! <= t - HOUR_MS) calls.shift();
+    if (calls.length >= limit) return false;
+    calls.push(t);
     return true;
   };
 }
 
+/** One retry after a short pause for blips (a warehouse resuming, a dropped connection). */
+async function retryOnce<T>(work: () => Promise<T>, sleep: (ms: number) => Promise<void>) {
+  try {
+    return await work();
+  } catch (err) {
+    if (!isTransient(err)) throw err;
+    await sleep(RETRY_DELAY_MS);
+    return work();
+  }
+}
+
+interface Guards {
+  waitFor: (hospitalId: string) => number;
+  spend: () => boolean;
+  sleep: (ms: number) => Promise<void>;
+}
+
 function guarded(
-  admit: (hospitalId: string) => boolean,
+  guards: Guards,
   work: (hospitalId: string, req: http.IncomingMessage) => Promise<unknown>,
 ): Handler {
   return (req, res) => {
     const hospitalId = hospitalOf(req);
     if (!hospitalId) return send(res, 400, { error: 'h must be 8 chars [a-z0-9]' });
-    if (!admit(hospitalId)) return send(res, 429, { error: 'One question every few seconds.' });
-    work(hospitalId, req)
+    const retryAfterMs = guards.waitFor(hospitalId);
+    if (retryAfterMs > 0) {
+      return send(res, 429, { error: 'One question every few seconds.', retryAfterMs });
+    }
+    if (!guards.spend()) {
+      return send(res, 503, { error: 'Insights is paused after heavy use. Try again in an hour.' });
+    }
+    retryOnce(() => work(hospitalId, req), guards.sleep)
       .then((body) => send(res, 200, body))
       .catch((err: unknown) => {
         if ((err as { status?: number }).status === 400) {
@@ -191,22 +262,37 @@ function guarded(
   };
 }
 
+export interface InsightsOptions {
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  hourlyLimit?: number;
+  /** false once the boot-time schema check finds drift: the panel hides instead of erroring. */
+  schemaOk?: () => boolean | null;
+}
+
 /**
  * Returns a handler for `/api/insights/*`, or for the off case one that only answers `status`.
  * The caller routes by prefix, so every other path in the app is untouched.
  */
-export function insightsHandler(sf: Snowflake | null, now: () => number = Date.now) {
-  const admit = cooldown(now);
+export function insightsHandler(sf: Snowflake | null, options: InsightsOptions = {}) {
+  const now = options.now ?? Date.now;
+  const schemaOk = options.schemaOk ?? (() => null);
+  const guards: Guards = {
+    waitFor: cooldown(now),
+    spend: hourlyBudget(now, options.hourlyLimit ?? HOURLY_LIMIT),
+    sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+  };
   const routes: Record<string, Handler> = {
-    'GET status': (_req, res) => send(res, 200, { enabled: sf !== null }),
+    'GET status': (_req, res) => send(res, 200, { enabled: sf !== null && schemaOk() !== false }),
   };
   if (sf) {
-    routes['POST ask'] = guarded(admit, async (hospitalId, req) => {
-      const question = questionOf(await readBody(req));
+    // The body is read once, outside the retry, so a retried ask reuses the parsed question.
+    routes['POST ask'] = guarded(guards, async (hospitalId, req) => {
+      const question = questionOf(await bodyOf(req));
       if (!question) throw badRequest();
       return ask(sf, hospitalId, question);
     });
-    routes['GET summary'] = guarded(admit, (hospitalId) => summarize(sf, hospitalId));
+    routes['GET summary'] = guarded(guards, (hospitalId) => summarize(sf, hospitalId));
   }
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname.slice(INSIGHTS_PREFIX.length);

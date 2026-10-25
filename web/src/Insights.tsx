@@ -10,6 +10,7 @@ interface AskResult {
   rows: (string | null)[][];
   suggestions: string[];
   refused?: string;
+  failed?: string;
 }
 
 /** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
@@ -34,7 +35,7 @@ function duration(minutes: number | null): string {
 /** Numbers first (measured in SQL), then the AI's prose, so the facts never depend on the model. */
 function Summary({ data }: { data: ShiftSummary }) {
   if (data.events === 0) {
-    return <p className={styles.insightsAnswer}>No events in the last 12 hours yet.</p>;
+    return <p className={styles.insightsAnswer}>{NO_ACTIVITY}</p>;
   }
   const m = data.metrics;
   const stats: [string, string][] = [
@@ -76,9 +77,23 @@ const EXAMPLES = [
   'How many times did the shelf drop to its minimum?',
 ];
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+/** Events reach Snowflake in 5 s batches, so a fresh hospital has nothing to report at first. */
+const NO_ACTIVITY =
+  'No activity yet. Drag pumps into patient rooms, then try again in a few seconds.';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A quick second click lands inside the server's per-hospital cooldown (429). That is pacing,
+ * not a failure, so wait it out once and retry instead of showing an error.
+ */
+async function api<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
   const res = await fetch(path, init);
-  const body = (await res.json()) as T & { error?: string };
+  const body = (await res.json()) as T & { error?: string; retryAfterMs?: number };
+  if (res.status === 429 && !retried && body.retryAfterMs) {
+    await sleep(body.retryAfterMs + 100);
+    return api<T>(path, init, true);
+  }
   if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
   return body;
 }
@@ -141,7 +156,12 @@ function Answer({ result }: { result: AskResult }) {
     <div className={styles.insightsAnswer}>
       {result.text && <p>{result.text}</p>}
       {result.refused && <p className={styles.muted}>Not run: {result.refused}</p>}
-      <ResultTable columns={result.columns} rows={result.rows} />
+      {result.failed && <p className={styles.muted}>{result.failed}</p>}
+      {result.columns.length > 0 && result.rows.length === 0 ? (
+        <p className={styles.muted}>{NO_ACTIVITY}</p>
+      ) : (
+        <ResultTable columns={result.columns} rows={result.rows} />
+      )}
       {result.sql && (
         <details>
           <summary>SQL Cortex Analyst wrote</summary>
