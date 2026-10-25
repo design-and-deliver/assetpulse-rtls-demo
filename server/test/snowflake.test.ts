@@ -18,6 +18,7 @@ import { loadSnowflakeConfig, type SnowflakeConfig } from '../src/snowflake/conf
 import {
   ask,
   insightsHandler,
+  localOrPublic,
   refusalFor,
   summarize,
   type InsightsOptions,
@@ -377,6 +378,28 @@ describe('insights guardrails', () => {
     expect((await fetch(`${base}/summary?h=aaaa0001`)).status).toBe(200);
     expect((await fetch(`${base}/summary?h=aaaa0002`)).status).toBe(200);
     expect((await fetch(`${base}/summary?h=aaaa0003`)).status).toBe(503);
+  });
+
+  it('shows on localhost, hides on other hosts until made public, and 404s hidden routes', async () => {
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    const base = await serve(sf, { visibleTo: localOrPublic(false) });
+    // fetch() drops a custom Host header, so send raw requests.
+    const as = (host: string, p: string) =>
+      new Promise<{ status: number; body: unknown }>((resolve, reject) => {
+        http
+          .get(`${base}/${p}`, { headers: { host } }, (res) => {
+            let body = '';
+            res.on('data', (c: Buffer) => (body += c));
+            res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(body) }));
+          })
+          .on('error', reject);
+      });
+    expect((await as('localhost:5173', 'status')).body).toEqual({ enabled: true });
+    expect((await as('assetpulse.proswitch.ai', 'status')).body).toEqual({ enabled: false });
+    expect((await as('assetpulse.proswitch.ai', `summary?h=${H}`)).status).toBe(404);
+    expect(sf.query).not.toHaveBeenCalled();
+    const req = { headers: { host: 'assetpulse.proswitch.ai' } } as http.IncomingMessage;
+    expect(localOrPublic(true)(req)).toBe(true);
   });
 
   it('hides the panel once the schema check finds drift, but not while it is unknown', async () => {

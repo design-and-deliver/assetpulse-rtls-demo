@@ -12,7 +12,7 @@ import { Connection } from './hub/connection.js';
 import { startHeartbeat } from './hub/heartbeat.js';
 import { WorldRegistry, type RegistryOptions } from './hub/world-registry.js';
 import { loadSnowflakeConfig, type SnowflakeConfig } from './snowflake/config.js';
-import { INSIGHTS_PREFIX, insightsHandler } from './snowflake/insights.js';
+import { INSIGHTS_PREFIX, insightsHandler, localOrPublic } from './snowflake/insights.js';
 import { SnowflakeRest } from './snowflake/rest.js';
 import { checkSchema } from './snowflake/schema.js';
 
@@ -120,7 +120,10 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
   const snowflake = snowflakeLayer(snowflakeConfigFrom(options));
   const history = options.sink ?? new HistorySink();
   const sink = snowflake.sink ? new TeeSink([history, snowflake.sink]) : history;
-  const insights = insightsHandler(snowflake.rest, { schemaOk: snowflake.schemaOk });
+  const insights = insightsHandler(snowflake.rest, {
+    schemaOk: snowflake.schemaOk,
+    visibleTo: localOrPublic(process.env.INSIGHTS_PUBLIC === '1'),
+  });
   const registry = new WorldRegistry({
     ...options,
     sink,
