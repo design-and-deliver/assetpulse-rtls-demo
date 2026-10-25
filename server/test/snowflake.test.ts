@@ -77,6 +77,21 @@ describe('loadSnowflakeConfig', () => {
     });
   });
 
+  it('accepts the key as a bare base64 body on one line, the way a portal paste arrives', () => {
+    const body = PEM.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+    const { config } = loadSnowflakeConfig({ ...full, SNOWFLAKE_PRIVATE_KEY: body });
+    expect(config?.privateKeyPem.replace(/\s+/g, '')).toBe(PEM.replace(/\s+/g, ''));
+  });
+
+  it('stays off, rather than failing every request, when the key does not parse', () => {
+    const { config, missing } = loadSnowflakeConfig({
+      ...full,
+      SNOWFLAKE_PRIVATE_KEY: 'not-a-key',
+    });
+    expect(config).toBeNull();
+    expect(missing).toEqual(['a valid SNOWFLAKE_PRIVATE_KEY (it did not parse)']);
+  });
+
   it('stays off and names what is missing when the flag is on but credentials are not', () => {
     const { config, missing } = loadSnowflakeConfig({ SNOWFLAKE_ENABLED: '1' });
     expect(config).toBeNull();
