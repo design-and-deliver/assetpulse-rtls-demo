@@ -113,7 +113,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       );
       await page.goto(`/?h=${hospital}`);
       await page.getByRole('button', { name: /Insights/ }).click();
-      const chip = page.getByRole('button', { name: /by tech$/ });
+      const chip = page.getByRole('button', { name: 'Median delivery' });
       await chip.focus();
       await page.keyboard.press('Enter');
       // While Cortex works, the pressed chip keeps keyboard focus (it must not go disabled).
@@ -122,9 +122,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
       releaseAsk();
       await expect(page.getByRole('region', { name: 'Query results' })).toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Median minutes' })).toBeVisible();
-      await page.getByRole('button', { name: 'Shift summary' }).click();
+      await page.getByText('How Cortex answered').click();
+      await expectNoViolations(page, 'dialog');
+      await page.getByRole('tab', { name: 'Shift summary' }).click();
       await expect(page.getByRole('heading', { name: 'Last 12 hours' })).toBeVisible();
-      await page.getByText('SQL Cortex Analyst wrote').click();
       await expectNoViolations(page, 'dialog');
     });
   });
