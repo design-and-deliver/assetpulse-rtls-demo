@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import appStyles from './App.module.css';
 import styles from './Panels.module.css';
 
@@ -71,11 +78,20 @@ function Summary({ data }: { data: ShiftSummary }) {
   );
 }
 
+/** Short chip labels; the full question goes into the box, so the visitor sees what was asked. */
 const EXAMPLES = [
-  'How many work orders were opened today?',
-  'Median minutes from page to delivery, by tech',
-  'How many times did the shelf drop to its minimum?',
+  { label: 'Orders today', question: 'How many work orders were opened today?' },
+  { label: 'Median delivery', question: 'Median minutes from page to delivery, by tech' },
+  { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
 ];
+
+/** SQL returns numbers as strings with many decimals ("0.066666667"); show at most two. */
+function formatCell(cell: string): string {
+  const n = Number(cell);
+  return cell.trim() !== '' && Number.isFinite(n)
+    ? n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : cell;
+}
 
 /** Events reach Snowflake in 5 s batches, so a fresh hospital has nothing to report at first. */
 const NO_ACTIVITY =
@@ -135,7 +151,9 @@ function ResultTable({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
             <tr key={i}>
               {row.map((cell, j) => (
                 <td key={j}>
-                  {cell ?? (
+                  {cell !== null ? (
+                    formatCell(cell)
+                  ) : (
                     <>
                       <span aria-hidden="true">—</span>
                       <span className={styles.srOnly}>none</span>
@@ -151,20 +169,40 @@ function ResultTable({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
   );
 }
 
+/** A one-cell result (a count, a median) reads best as one large figure, not a 1x1 table. */
+function Figure({ label, value }: { label: string; value: string | null }) {
+  return (
+    <p className={styles.insightsFigure}>
+      <span className={styles.insightsFigureLabel}>{columnLabel(label)}</span>
+      <span className={styles.insightsFigureValue}>{value === null ? '—' : formatCell(value)}</span>
+    </p>
+  );
+}
+
+function Result({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
+  if (columns.length === 0) return null;
+  if (rows.length === 0) return <p className={styles.muted}>{NO_ACTIVITY}</p>;
+  if (columns.length === 1 && rows.length === 1) {
+    return <Figure label={columns[0]!} value={rows[0]![0] ?? null} />;
+  }
+  return <ResultTable columns={columns} rows={rows} />;
+}
+
+/**
+ * The result leads. Cortex's restatement of the question and its SQL sit behind one disclosure,
+ * unless there is no SQL: then the text is Cortex's whole reply (e.g. asking to clarify).
+ */
 function Answer({ result }: { result: AskResult }) {
   return (
     <div className={styles.insightsAnswer}>
-      {result.text && <p>{result.text}</p>}
+      {!result.sql && result.text && <p>{result.text}</p>}
       {result.refused && <p className={styles.muted}>Not run: {result.refused}</p>}
       {result.failed && <p className={styles.muted}>{result.failed}</p>}
-      {result.columns.length > 0 && result.rows.length === 0 ? (
-        <p className={styles.muted}>{NO_ACTIVITY}</p>
-      ) : (
-        <ResultTable columns={result.columns} rows={result.rows} />
-      )}
+      <Result columns={result.columns} rows={result.rows} />
       {result.sql && (
-        <details>
-          <summary>SQL Cortex Analyst wrote</summary>
+        <details className={styles.insightsHow}>
+          <summary>How Cortex answered</summary>
+          {result.text && <p>{result.text}</p>}
           <pre className={styles.insightsSql}>{result.sql}</pre>
         </details>
       )}
@@ -172,52 +210,62 @@ function Answer({ result }: { result: AskResult }) {
   );
 }
 
-/** The overlay's contents: ask in plain English (Cortex Analyst) or get a shift summary (AI_SUMMARIZE_AGG). */
-function InsightsBody({ hospitalId }: { hospitalId: string }) {
-  const [question, setQuestion] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [answer, setAnswer] = useState<AskResult | null>(null);
-  const [summary, setSummary] = useState<ShiftSummary | null>(null);
+type Tab = 'ask' | 'summary';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'ask', label: 'Ask' },
+  { id: 'summary', label: 'Shift summary' },
+];
 
-  const h = encodeURIComponent(hospitalId);
-  /**
-   * Busy buttons use aria-disabled, not disabled: disabling the focused button would drop a
-   * keyboard user's focus out of it. A click while busy is ignored here instead.
-   */
-  async function run(work: () => Promise<void>) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  const ask = (q: string) =>
-    run(async () => {
-      setAnswer(
-        await api<AskResult>(`/api/insights/ask?h=${h}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ question: q }),
-        }),
-      );
-    });
-  const summarize = () =>
-    run(async () => {
-      setSummary(await api<ShiftSummary>(`/api/insights/summary?h=${h}`));
-    });
+/** ARIA tabs: one tab stop; the arrow keys move between tabs and select them. */
+function Tabs({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) {
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const next = TABS[(TABS.findIndex((t) => t.id === tab) + 1) % TABS.length]!.id;
+    onSelect(next);
+    document.getElementById(`insights-tab-${next}`)?.focus();
+  };
+  return (
+    <div role="tablist" aria-label="Insights" className={styles.insightsTabs} onKeyDown={onKeyDown}>
+      {TABS.map((t) => (
+        <button
+          key={t.id}
+          id={`insights-tab-${t.id}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === t.id}
+          aria-controls={`insights-panel-${t.id}`}
+          tabIndex={tab === t.id ? 0 : -1}
+          className={styles.insightsTab}
+          onClick={() => onSelect(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface Panel {
+  busy: boolean;
+  /** This panel's own error, so a summary failure never shows on the Ask tab. */
+  error: string | null;
+}
+
+function AskPanel({
+  hidden,
+  busy,
+  error,
+  answer,
+  onAsk,
+}: Panel & { hidden: boolean; answer: AskResult | null; onAsk: (q: string) => void }) {
+  const [question, setQuestion] = useState('');
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (question.trim()) void ask(question.trim());
+    if (question.trim()) onAsk(question.trim());
   };
-
   return (
-    <div className={styles.insightsBody}>
+    <div id="insights-panel-ask" role="tabpanel" aria-labelledby="insights-tab-ask" hidden={hidden}>
       <form className={styles.insightsForm} onSubmit={onSubmit}>
         <label htmlFor="insights-q" className={styles.srOnly}>
           Question about this hospital’s history
@@ -227,7 +275,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
           className={styles.insightsInput}
           value={question}
           maxLength={300}
-          placeholder="e.g. Median minutes from page to delivery, by tech"
+          placeholder="Ask about this floor’s history"
           onChange={(e) => setQuestion(e.target.value)}
         />
         <button
@@ -240,39 +288,123 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
         </button>
       </form>
       <div className={styles.insightsChips}>
-        {EXAMPLES.map((q) => (
+        {EXAMPLES.map(({ label, question: q }) => (
           <button
-            key={q}
+            key={label}
             type="button"
             className={styles.insightsChip}
             aria-disabled={busy || undefined}
             onClick={() => {
               if (busy) return;
               setQuestion(q);
-              void ask(q);
+              onAsk(q);
             }}
           >
-            {q}
+            {label}
           </button>
         ))}
       </div>
       <div aria-live="polite">
         {busy && <p className={styles.srOnly}>Asking Snowflake…</p>}
         {error && <p className={styles.insightsError}>{error}</p>}
-        {summary && <Summary data={summary} />}
         {answer && <Answer result={answer} />}
+      </div>
+    </div>
+  );
+}
+
+function SummaryPanel({
+  hidden,
+  busy,
+  error,
+  summary,
+  onRefresh,
+}: Panel & { hidden: boolean; summary: ShiftSummary | null; onRefresh: () => void }) {
+  return (
+    <div
+      id="insights-panel-summary"
+      role="tabpanel"
+      aria-labelledby="insights-tab-summary"
+      hidden={hidden}
+    >
+      <div aria-live="polite">
+        {busy && <p className={styles.muted}>Summarizing the last 12 hours…</p>}
+        {error && <p className={styles.insightsError}>{error}</p>}
+        {summary && <Summary data={summary} />}
       </div>
       <p className={styles.insightsFoot}>
         <button
           type="button"
           className={styles.button}
           aria-disabled={busy || undefined}
-          onClick={() => void summarize()}
+          onClick={onRefresh}
         >
-          Shift summary
+          Refresh
         </button>
-        <span className={styles.muted}>Events load into Snowflake every 5 s.</span>
       </p>
+    </div>
+  );
+}
+
+/** Each tab shows only its own latest result, so answers never pile up. */
+function InsightsBody({ hospitalId }: { hospitalId: string }) {
+  const [tab, setTab] = useState<Tab>('ask');
+  const [busy, setBusy] = useState<Tab | null>(null);
+  const [error, setError] = useState<{ tab: Tab; text: string } | null>(null);
+  const [answer, setAnswer] = useState<AskResult | null>(null);
+  const [summary, setSummary] = useState<ShiftSummary | null>(null);
+
+  const h = encodeURIComponent(hospitalId);
+  /**
+   * Busy buttons use aria-disabled, not disabled: disabling the focused button would drop a
+   * keyboard user's focus out of it. A click while busy is ignored here instead.
+   */
+  async function run(on: Tab, work: () => Promise<void>) {
+    if (busy) return;
+    setBusy(on);
+    setError(null);
+    try {
+      await work();
+    } catch (err) {
+      setError({ tab: on, text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setBusy(null);
+    }
+  }
+  const ask = (q: string) =>
+    void run('ask', async () => {
+      setAnswer(
+        await api<AskResult>(`/api/insights/ask?h=${h}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        }),
+      );
+    });
+  const summarize = () =>
+    void run('summary', async () => {
+      setSummary(await api<ShiftSummary>(`/api/insights/summary?h=${h}`));
+    });
+  /** The summary has nothing to ask, so opening its tab the first time fetches it. */
+  const select = (t: Tab) => {
+    setTab(t);
+    if (t === 'summary' && !summary) summarize();
+  };
+  const panel = (t: Tab): Panel => ({
+    busy: busy !== null,
+    error: error?.tab === t ? error.text : null,
+  });
+
+  return (
+    <div className={styles.insightsBody}>
+      <Tabs tab={tab} onSelect={select} />
+      <AskPanel hidden={tab !== 'ask'} {...panel('ask')} answer={answer} onAsk={ask} />
+      <SummaryPanel
+        hidden={tab !== 'summary'}
+        {...panel('summary')}
+        summary={summary}
+        onRefresh={summarize}
+      />
     </div>
   );
 }
