@@ -8,6 +8,8 @@
   --surface: #ffffff;
   --surface-2: #eef1f4;
   --border: #d5dbe1;
+  /* Edges that identify a control (inputs, chips): 3:1+ on --surface (WCAG 1.4.11). */
+  --control-border: #808c99;
   --text: #1c2630;
   --text-muted: #5b6874;
 
@@ -16,13 +18,14 @@
   --on-status: #ffffff;
   --offline: #6b7280;
 
-  --ok: #2f7d6d;
+  --ok: #28705f; /* 5.1:1 on --ok-soft (Buffer OK badge); was #2f7d6d at 4.28:1 */
   --ok-soft: #e6f2ef;
   --alert: #c0392b;
   --alert-soft: #fbeceb;
-  --warn: #9a6a2f;
+  --warn: #8a5c24; /* 5.1:1 on --warn-soft (the paged "New" chip); was #9a6a2f at 4.12:1 */
   --warn-soft: #f8efe2;
   --focus: #3a6ea5;
+  --cortex: #29b5e8; /* Snowflake brand blue: marks the Cortex-powered Insights entry point */
 
   --radius: 10px;
   --gap: 12px;
@@ -36,6 +39,7 @@
     --surface: #182028;
     --surface-2: #1f2932;
     --border: #2d3944;
+    --control-border: #6b7a87;
     --text: #e3e9ee;
     --text-muted: #93a1ad;
 

@@ -101,22 +101,73 @@ Checks:
 
 ```bash
 npm run typecheck && npm run lint && npm test   # Vitest: unit + real-socket integration
-npx playwright test                             # e2e dispatch loop (after npm run build)
+npx playwright test                             # e2e loop + axe a11y gate (after npm run build)
 ```
 
 The handheld can also run as a native app: `npm start -w @assetpulse/mobile` (Expo Go).
 
+## Snowflake + Cortex insights
+
+An opt-in analytics layer ([ADR 0006](docs/adr/0006-snowflake-cortex-sandbox.md)): events batch
+into Snowflake every 5 s, and an **Insights** overlay (header button) uses Cortex Analyst for plain-English
+questions ("median minutes from page to delivery, by tech") and `AI_SUMMARIZE_AGG` for a shift
+summary. It stays off unless `SNOWFLAKE_ENABLED=1` and credentials are set.
+
+Guardrails, so a visitor sees an answer rather than an error:
+
+- **Schema check at boot.** If Snowflake is missing a column `setup.sql` defines, the server logs
+  which ones and hides the Insights button instead of failing on first use.
+- **Retry once** on transient failures (network, 5xx, a resuming warehouse); 40 s of polling.
+- **Pacing, not errors.** A second click inside the 3 s per-hospital cooldown waits it out.
+- **Spend cap.** 120 Cortex calls per hour across all hospitals.
+- **Answers, not outages.** Analyst SQL that fails in Snowflake, or a hospital with no history
+  yet, gets a plain next step in the panel.
+- **UTC sessions,** so Analyst's "today" matches how events are stored.
+
+1. Start a Snowflake trial on **Azure** (a region near the App Service, e.g. East US 2).
+2. Make a key pair for the service user (the files are git-ignored):
+
+   ```bash
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt
+   openssl rsa -in rsa_key.p8 -pubout -out rsa_key.pub
+   ```
+
+3. Paste the body of `rsa_key.pub` into [`docs/snowflake/setup.sql`](docs/snowflake/setup.sql) and
+   run it in a Snowsight worksheet. Upload [`docs/snowflake/assetpulse.yaml`](docs/snowflake/assetpulse.yaml)
+   to the `MODELS` stage it creates.
+4. Create `server/.env.snowflake` (git-ignored):
+
+   ```ini
+   SNOWFLAKE_ENABLED=1
+   SNOWFLAKE_ACCOUNT=<orgname>-<accountname>
+   SNOWFLAKE_USER=ASSETPULSE_SVC
+   SNOWFLAKE_PRIVATE_KEY_PATH=../rsa_key.p8
+   SNOWFLAKE_ROLE=ASSETPULSE_APP
+   SNOWFLAKE_WAREHOUSE=ASSETPULSE_WH
+   SNOWFLAKE_DATABASE=ASSETPULSE
+   SNOWFLAKE_SCHEMA=APP
+   ```
+
+5. `npm run dev:snowflake`, drag a few pumps to page a tech, wait a few seconds, then ask.
+6. Production: set the same keys as App Service application settings, with the key inline as
+   `SNOWFLAKE_PRIVATE_KEY` (`
+` escapes allowed) instead of a path.
+
+After any change to `setup.sql` or `assetpulse.yaml`, re-run it in Snowsight as ACCOUNTADMIN and
+re-upload the YAML: nothing applies them automatically, and the boot check hides Insights until
+you do.
+
 ## Repo map
 
-| Path                | What it is                                                         |
-| ------------------- | ------------------------------------------------------------------ |
-| `packages/protocol` | zod frame schemas, constants, floor data: the single contract      |
-| `packages/client`   | reconnecting client: backoff, resume, command acks, measured stats |
-| `server`            | HTTP + `/ws`, world registry, event log, heartbeat, adapters       |
-| `web`               | the ops console (React 19 + Vite, CSS Modules)                     |
-| `mobile`            | the tech handheld (Expo), also exported to `/tech`                 |
-| `e2e`               | Playwright: the full dispatch loop, including a disconnect         |
-| `docs`              | protocol reference and ADRs                                        |
+| Path                | What it is                                                           |
+| ------------------- | -------------------------------------------------------------------- |
+| `packages/protocol` | zod frame schemas, constants, floor data: the single contract        |
+| `packages/client`   | reconnecting client: backoff, resume, command acks, measured stats   |
+| `server`            | HTTP + `/ws`, world registry, event log, heartbeat, adapters         |
+| `web`               | the ops console (React 19 + Vite, CSS Modules)                       |
+| `mobile`            | the tech handheld (Expo), also exported to `/tech`                   |
+| `e2e`               | Playwright: the full dispatch loop, including a disconnect           |
+| `docs`              | protocol reference, ADRs, and the Snowflake setup (`docs/snowflake`) |
 
 ## License
 

@@ -9,6 +9,8 @@ const SERVER_OVERRIDE = process.env.EXPO_PUBLIC_SERVER_URL;
 const NATIVE_DEFAULT = 'http://localhost:8787';
 
 export interface Target {
+  /** The server's HTTP origin, for `/api/*`. */
+  origin: string;
   url: string;
   hospitalId: string | null;
 }
@@ -29,13 +31,13 @@ function socketUrl(origin: string): string {
  */
 export async function resolveTarget(): Promise<Target> {
   if (Platform.OS === 'web') {
-    return {
-      url: socketUrl(SERVER_OVERRIDE ?? window.location.origin),
-      hospitalId: hospitalFrom(window.location.href),
-    };
+    const origin = SERVER_OVERRIDE ?? window.location.origin;
+    return { origin, url: socketUrl(origin), hospitalId: hospitalFrom(window.location.href) };
   }
+  const origin = SERVER_OVERRIDE ?? NATIVE_DEFAULT;
   return {
-    url: socketUrl(SERVER_OVERRIDE ?? NATIVE_DEFAULT),
+    origin,
+    url: socketUrl(origin),
     hospitalId: hospitalFrom(await Linking.getInitialURL()),
   };
 }

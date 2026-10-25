@@ -3,7 +3,7 @@ import { FrameType, type Command, type WorkOrder } from '@assetpulse/protocol';
 import { commandFailureText } from './copy';
 import { outcome } from './store';
 
-/** The pager's tech id on the wire — a phone joins as `tech-NNNN`, so the two never collide. */
+/** The pager's tech id when the server can't name it ("Tech N" from `/api/tech-name` otherwise). */
 export const PAGER_TECH_ID = 'tech-web';
 
 /** standby → new (Accept) → mine (Complete restock) → standby; `taken` = another tech accepted. */

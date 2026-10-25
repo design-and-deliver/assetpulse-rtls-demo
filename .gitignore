@@ -15,3 +15,7 @@ CLAUDE.md
 # Playwright output
 test-results/
 playwright-report/
+
+# Snowflake key pair (README "Snowflake + Cortex sandbox")
+*.p8
+rsa_key*

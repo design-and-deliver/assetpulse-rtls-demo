@@ -16,12 +16,14 @@
   "scripts": {
     "build": "npm run build -w @assetpulse/protocol -w @assetpulse/client -w @assetpulse/server -w @assetpulse/web && npm run build:web -w @assetpulse/mobile",
     "dev": "concurrently -n server,web \"npm run dev -w @assetpulse/server\" \"npm run dev -w @assetpulse/web\"",
+    "dev:snowflake": "concurrently -n server,web \"npm run dev:snowflake -w @assetpulse/server\" \"npm run dev -w @assetpulse/web\"",
     "test": "vitest run",
     "typecheck": "tsc -b && tsc -p mobile --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.4",

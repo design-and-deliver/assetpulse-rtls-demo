@@ -3,6 +3,7 @@ import type { WorkOrder } from '@assetpulse/protocol';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Vibration } from 'react-native';
 import { resolveTarget } from './connection';
+import { fetchTechName } from './techName';
 
 export type Status = ConnectionState | 'no-hospital';
 
@@ -85,18 +86,23 @@ function useClient(): {
   client: AssetPulseClient | null;
   status: Status;
   hospitalId: string | null;
+  techName: string | null;
 } {
   const [status, setStatus] = useState<Status>('connecting');
+  const [techName, setTechName] = useState<string | null>(null);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [client, setClient] = useState<AssetPulseClient | null>(null);
 
   useEffect(() => {
     let dispose = () => {};
     let cancelled = false;
-    void resolveTarget().then(({ url, hospitalId: id }) => {
+    void resolveTarget().then(({ origin, url, hospitalId: id }) => {
       if (cancelled) return;
       if (!id) return setStatus('no-hospital');
       setHospitalId(id);
+      void fetchTechName(origin, id).then((name) => {
+        if (!cancelled && name) setTechName(name);
+      });
       const c = createClient({ url, hospitalId: id, topics: ['role:tech'] });
       const unsubscribe = c.state$.subscribe(setStatus);
       setStatus(c.state$.value);
@@ -112,13 +118,15 @@ function useClient(): {
     };
   }, []);
 
-  return { client, status, hospitalId };
+  return { client, status, hospitalId, techName };
 }
 
 export function useTechSession(): TechSession {
-  const { client, status, hospitalId } = useClient();
+  const { client, status, hospitalId, techName } = useClient();
   const { orders, fresh } = useOrders(client);
-  const [techId] = useState(() => `tech-${Math.floor(1000 + Math.random() * 9000)}`);
+  /** "Tech N" once the server names this device; a random id until then, or if it can't. */
+  const [fallbackId] = useState(() => `tech-${Math.floor(1000 + Math.random() * 9000)}`);
+  const techId = techName ?? fallbackId;
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
