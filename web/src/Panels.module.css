@@ -528,7 +528,8 @@
 /* Insights overlay: modal header a step bigger, bolder, centered (ux: design/modal-header) */
 
 .insightsDialog {
-  width: min(640px, calc(100vw - 32px));
+  /* Closer to 4:3 than a wide strip: narrower, with a floor on height (see .insightsBody). */
+  width: min(560px, calc(100vw - 32px));
   max-height: 85vh;
   padding: 0;
   color: var(--text);
@@ -586,7 +587,9 @@
   outline: 2px solid var(--focus);
 }
 
+/* A floor on height, so the dialog keeps its shape and doesn't jump between tabs. */
 .insightsBody {
+  min-height: min(340px, 60vh);
   padding: 14px 18px 16px;
 }
 
@@ -648,7 +651,8 @@
 
 .shiftStats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  /* Five stats as an even 3 + 2 at this width, rather than 4 + 1. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 0;
 }
