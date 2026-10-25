@@ -25,6 +25,7 @@
   --warn: #8a5c24; /* 5.1:1 on --warn-soft (the paged "New" chip); was #9a6a2f at 4.12:1 */
   --warn-soft: #f8efe2;
   --focus: #3a6ea5;
+  --cortex: #29b5e8; /* Snowflake brand blue: marks the Cortex-powered Insights entry point */
 
   --radius: 10px;
   --gap: 12px;

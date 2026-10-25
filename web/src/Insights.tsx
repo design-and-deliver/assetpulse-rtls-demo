@@ -280,7 +280,10 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
   return (
     <>
       <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
-        <span aria-hidden="true">&#10022;</span> Insights
+        <span aria-hidden="true" className={styles.insightsGlyph}>
+          &#10022;
+        </span>{' '}
+        Insights
       </button>
       <dialog
         ref={dialog}
