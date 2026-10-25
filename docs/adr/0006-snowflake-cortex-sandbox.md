@@ -1,6 +1,6 @@
 # ADR 0006 — Snowflake + Cortex as an opt-in cold path
 
-**Status:** Accepted · 2026-10-22 · enabled in production 2026-10-25, with the guardrails in the README
+**Status:** Accepted · 2026-10-22 · running in production since 2026-10-25 (button hidden there until INSIGHTS_PUBLIC=1), with the guardrails in the README
 
 ## Context
 

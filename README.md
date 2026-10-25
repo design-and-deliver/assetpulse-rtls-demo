@@ -150,8 +150,9 @@ Guardrails, so a visitor sees an answer rather than an error:
 
 5. `npm run dev:snowflake`, drag a few pumps to page a tech, wait a few seconds, then ask.
 6. Production: set the same keys as App Service application settings, with the key inline as
-   `SNOWFLAKE_PRIVATE_KEY` (`
-` escapes allowed) instead of a path.
+   `SNOWFLAKE_PRIVATE_KEY` (the base64 body on one line is enough) instead of a path. Events
+   load and history builds, but the Insights button shows only on localhost until
+   `INSIGHTS_PUBLIC=1` is set too.
 
 After any change to `setup.sql` or `assetpulse.yaml`, re-run it in Snowsight as ACCOUNTADMIN and
 re-upload the YAML: nothing applies them automatically, and the boot check hides Insights until

@@ -268,6 +268,25 @@ export interface InsightsOptions {
   hourlyLimit?: number;
   /** false once the boot-time schema check finds drift: the panel hides instead of erroring. */
   schemaOk?: () => boolean | null;
+  /**
+   * Who may see the panel. Hidden callers get `enabled: false` and a 404 on every other route,
+   * exactly as if the layer were off. Defaults to everyone; the app passes `localOrPublic`.
+   */
+  visibleTo?: (req: http.IncomingMessage) => boolean;
+}
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Insights on localhost always; on any other host (production) only once `INSIGHTS_PUBLIC=1`
+ * is set, so the layer can run and collect history before the button is shared.
+ */
+export function localOrPublic(isPublic: boolean) {
+  return (req: http.IncomingMessage): boolean => {
+    if (isPublic) return true;
+    const host = (req.headers.host ?? '').replace(/:\d+$/, '');
+    return LOCAL_HOSTS.has(host);
+  };
 }
 
 /**
@@ -282,8 +301,10 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
     spend: hourlyBudget(now, options.hourlyLimit ?? HOURLY_LIMIT),
     sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
   };
+  const visibleTo = options.visibleTo ?? (() => true);
   const routes: Record<string, Handler> = {
-    'GET status': (_req, res) => send(res, 200, { enabled: sf !== null && schemaOk() !== false }),
+    'GET status': (req, res) =>
+      send(res, 200, { enabled: sf !== null && schemaOk() !== false && visibleTo(req) }),
   };
   if (sf) {
     // The body is read once, outside the retry, so a retried ask reuses the parsed question.
@@ -296,7 +317,8 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
   }
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname.slice(INSIGHTS_PREFIX.length);
-    const route = routes[`${req.method} ${path}`];
+    const key = `${req.method} ${path}`;
+    const route = key === 'GET status' || visibleTo(req) ? routes[key] : undefined;
     if (route) route(req, res);
     else send(res, 404, { error: 'not found' });
   };
