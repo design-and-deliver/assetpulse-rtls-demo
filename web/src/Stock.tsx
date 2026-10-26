@@ -209,7 +209,7 @@ export function Stock({
           <h2 id="shelf-heading" className={styles.heading}>
             Clean Utility{' '}
             <span className={styles.headingNote}>
-              PAR {PAR.max} · reorder at {PAR.min}
+              PAR {PAR.max} · Reorder at {PAR.min}
             </span>
           </h2>
           {par && <BufferBadge clean={clean} par={par} />}
