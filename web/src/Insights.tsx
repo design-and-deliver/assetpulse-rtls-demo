@@ -253,6 +253,9 @@ function AskPanel({
   onAsk: (q: string) => void;
 }) {
   const [question, setQuestion] = useState('');
+  // Mounted fresh on each open (see the key in InsightsBody), so start the visitor in the box.
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => input.current?.focus(), []);
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (question.trim()) onAsk(question.trim());
@@ -264,6 +267,7 @@ function AskPanel({
           Question about this hospital’s history
         </label>
         <input
+          ref={input}
           id="insights-q"
           className={styles.insightsInput}
           value={question}
@@ -297,12 +301,12 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
 
   const { glance, failed, check } = useGlance(hospitalId, opens);
 
-  // A reset starts a new session: the last run's answer no longer describes this floor.
+  // Each open starts fresh, and so does a reset (the last run's answer no longer fits the floor).
   const session = glance?.session;
   useEffect(() => {
     setAnswer(null);
     setError(null);
-  }, [session]);
+  }, [session, opens]);
 
   /**
    * The busy button uses aria-disabled, not disabled: disabling the focused button would drop a
@@ -344,7 +348,14 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
   return (
     <div className={styles.insightsBody}>
       {glance && <GlanceCards metrics={glance} />}
-      <AskPanel busy={busy} error={error} answer={answer} onAsk={(q) => void ask(q)} />
+      {/* Keyed by open, so the question box starts empty each time the dialog opens. */}
+      <AskPanel
+        key={opens}
+        busy={busy}
+        error={error}
+        answer={answer}
+        onAsk={(q) => void ask(q)}
+      />
     </div>
   );
 }
@@ -356,7 +367,7 @@ const HINT_MS = 5_000;
 /**
  * Progressive disclosure: a header button (only when the server has Snowflake on) opens the
  * panel as a modal <dialog>, which brings Esc-to-close, a focus trap, and a backdrop. The body
- * stays mounted while closed, so the last answer is still there when it reopens.
+ * stays mounted while closed; each open clears the question and the last answer.
  */
 export function Insights({ hospitalId, active }: { hospitalId: string; active: boolean }) {
   const enabled = useEnabled();

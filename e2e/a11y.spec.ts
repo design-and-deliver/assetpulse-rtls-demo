@@ -109,6 +109,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.getByLabel(/Question about/).fill('Orders by tech');
       await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
       await expectNoViolations(page, 'dialog');
+      // Each open starts fresh: an empty question box, with the focus in it.
+      await page.getByRole('button', { name: 'Close' }).click();
+      await page.getByRole('button', { name: /Insights/ }).click();
+      await expect(page.getByLabel(/Question about/)).toHaveValue('');
+      await expect(page.getByLabel(/Question about/)).toBeFocused();
     });
 
     test('insights hint before any activity', async ({ page }) => {
