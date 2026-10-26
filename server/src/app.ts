@@ -47,7 +47,7 @@ const TECH_PREFIX = '/tech';
 const TECH_NAME_PATH = '/api/tech-name';
 const DEVICE_KEY_PATTERN = /^[a-z0-9]{8,32}$/;
 
-/** `GET /api/tech-name?h=<hospital>&d=<device key>` → `{ name: "Tech 2" }`, stable per device. */
+/** `GET /api/tech-name?h=<hospital>&d=<device key>` → `{ name: "Joe Tech" }`, stable per device. */
 function techNameHandler(registry: WorldRegistry) {
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
     const url = new URL(req.url ?? '/', 'http://localhost');

@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LockScreen } from './src/LockScreen';
+import { LockScreen, monogram } from './src/LockScreen';
 import { OrderCard } from './src/OrderCard';
 import { PhoneFrame } from './src/PhoneFrame';
 import { usePalette, type Palette } from './src/theme';
@@ -81,7 +81,7 @@ function TechApp({ session }: { session: TechSession }) {
       )}
       <View style={styles.who}>
         <View style={styles.avatar} aria-hidden>
-          <Text style={styles.avatarText}>{initials(techId)}</Text>
+          <Text style={styles.avatarText}>{monogram(techId)}</Text>
         </View>
         <View>
           <Text style={styles.whoName}>{techId}</Text>
@@ -131,12 +131,6 @@ function TechApp({ session }: { session: TechSession }) {
   );
 }
 
-/** "Tech 2" → "T2": the avatar's monogram. */
-function initials(name: string | null): string {
-  if (!name) return '?';
-  const [first = '', second = ''] = name.split(' ');
-  return (first.charAt(0) + second).slice(0, 3).toUpperCase();
-}
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({

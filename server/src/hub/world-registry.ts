@@ -92,7 +92,7 @@ export class WorldHub {
   session: string;
   /** The log's seq when this session began: later events are the session's history. */
   private sessionSeq = 0;
-  /** Device key → "Tech N", numbered in first-seen order, so each device keeps one name. */
+  /** Device key → its tech name, in first-seen order, so each device keeps one name. */
   private readonly techNames = new Map<string, string>();
 
   constructor(
@@ -113,11 +113,16 @@ export class WorldHub {
     return `${this.hospitalId}-${this.deps.now().toString(36)}${++this.runs}`;
   }
 
-  /** The demo has no login: a device's stored key earns the next "Tech N", then keeps it. */
+  /**
+   * The demo has no login: a device's stored key earns a name, then keeps it. The demo has one
+   * tech, so the first device (the console's embedded phone) is "Joe Tech"; any extra device is
+   * "Tech 2", "Tech 3"…, so two devices never share a name and race on one order.
+   */
   techName(deviceKey: string): string {
     let name = this.techNames.get(deviceKey);
     if (!name) {
-      name = `Tech ${this.techNames.size + 1}`;
+      const n = this.techNames.size + 1;
+      name = n === 1 ? 'Joe Tech' : `Tech ${n}`;
       this.techNames.set(deviceKey, name);
     }
     return name;

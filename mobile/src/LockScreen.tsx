@@ -54,10 +54,12 @@ function Pulse({ color }: { color: string }) {
   );
 }
 
-/** "Tech 1" → "T1". */
-function monogram(name: string): string {
+/** "Joe Tech" → "JT", "Tech 2" → "T2". */
+export function monogram(name: string): string {
   const [first = '', second = ''] = name.split(' ');
-  return (first.charAt(0) + second).slice(0, 3).toUpperCase();
+  // A number stays whole ("T12"); a word gives its initial ("JT").
+  const tail = /^\d+$/.test(second) ? second : second.charAt(0);
+  return (first.charAt(0) + tail).toUpperCase();
 }
 
 /** Whose phone this is and what it is doing, as a lock-screen widget under the clock. */
@@ -124,7 +126,7 @@ export function LockScreen({
   orders,
   onOpen,
 }: {
-  /** "Tech 2": named under the clock, so a visitor knows whose phone this is. */
+  /** "Joe Tech": named under the clock, so a visitor knows whose phone this is. */
   owner: string;
   orders: WorkOrder[];
   onOpen: () => void;
