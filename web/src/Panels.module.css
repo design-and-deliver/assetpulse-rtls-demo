@@ -651,7 +651,7 @@
 
 .shiftStats {
   display: grid;
-  /* Five stats as an even 3 + 2 at this width, rather than 4 + 1. */
+  /* Three columns: the Glance cards fill a row; the summary's two leave a third free. */
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 0;

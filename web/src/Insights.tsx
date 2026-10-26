@@ -48,11 +48,9 @@ function Summary({ data }: { data: ShiftSummary }) {
     return <p className={styles.insightsAnswer}>{NO_ACTIVITY}</p>;
   }
   const m = data.metrics;
+  // The other three measured numbers are the Glance cards above the tabs; never show one twice.
   const stats: [string, string][] = [
     ['Orders opened', String(m.ordersOpened)],
-    ['Orders delivered', String(m.ordersDelivered)],
-    ['Median page to delivery', duration(m.medianMinutesToDeliver)],
-    ['Shelf hit minimum', String(m.parBreaches)],
     ['Pump moves', String(m.pumpMoves)],
   ];
   return (
