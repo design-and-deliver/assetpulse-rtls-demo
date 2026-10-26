@@ -219,8 +219,8 @@
 }
 
 /*
- * Wide: sized to the phone (390 screen + bezel + room to buzz), as tall as the window allows; the
- * app draws its own bezel to fit. Narrow: too slim for a bezel, so the app runs plain in a card.
+ * Wide: as tall as the console's --stage; the app draws its own bezel to fit (390 screen + bezel
+ * + room to buzz). Stacked and phone-width sizes follow below.
  */
 .phoneFrame {
   width: min(440px, 100%);
@@ -230,10 +230,17 @@
   background: transparent;
 }
 
+/* Stacked under the panel: a fixed, phone-shaped height, so it never squashes. */
 @media (max-width: 1099px) {
   .phoneFrame {
+    height: 820px;
+  }
+}
+
+/* A phone-width screen has no room for the bezel: the app runs plain, in a card. */
+@media (max-width: 479px) {
+  .phoneFrame {
     height: 560px;
-    min-height: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
