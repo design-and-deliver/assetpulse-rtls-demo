@@ -1,11 +1,6 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type MouseEvent,
-} from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import appStyles from './App.module.css';
+import { withoutDateRange } from './answer';
 import styles from './Panels.module.css';
 
 /** Mirrors `AskResult` in server/src/snowflake/insights.ts. */
@@ -210,7 +205,8 @@ function Figure({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function Result({ columns, rows }: Pick<AskResult, 'columns' | 'rows'>) {
+function Result(result: Pick<AskResult, 'columns' | 'rows'>) {
+  const { columns, rows } = withoutDateRange(result);
   if (columns.length === 0) return null;
   if (rows.length === 0) return <p className={styles.muted}>{NO_ACTIVITY}</p>;
   if (columns.length === 1 && rows.length === 1) {
@@ -349,13 +345,7 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
     <div className={styles.insightsBody}>
       {glance && <GlanceCards metrics={glance} />}
       {/* Keyed by open, so the question box starts empty each time the dialog opens. */}
-      <AskPanel
-        key={opens}
-        busy={busy}
-        error={error}
-        answer={answer}
-        onAsk={(q) => void ask(q)}
-      />
+      <AskPanel key={opens} busy={busy} error={error} answer={answer} onAsk={(q) => void ask(q)} />
     </div>
   );
 }
