@@ -378,6 +378,20 @@ describe('insights guardrails', () => {
     expect(await res.json()).toMatchObject({ retryAfterMs: 2_000 });
   });
 
+  it('flushes queued events before every read, so answers include the last few seconds', async () => {
+    const order: string[] = [];
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),
+      query: vi.fn(async () => (order.push('query'), okMetrics())),
+    };
+    const beforeRead = vi.fn(async () => void order.push('flush'));
+    const base = await serve(sf, { now: () => 1_000, beforeRead });
+    await fetch(`${base}/glance?h=${H}`);
+    await fetch(`${base}/ask?h=${H}`, { method: 'POST', body: JSON.stringify({ question: 'Q?' }) });
+    expect(beforeRead).toHaveBeenCalledTimes(2);
+    expect(order.slice(0, 2)).toEqual(['flush', 'query']);
+  });
+
   it('serves the glance cards from SQL alone, without holding up an Ask', async () => {
     const sf = {
       askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),

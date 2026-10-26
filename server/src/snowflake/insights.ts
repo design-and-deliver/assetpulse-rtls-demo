@@ -262,6 +262,8 @@ export interface InsightsOptions {
    * to report). Defaults to the hospital id itself; the app passes `WorldHub.session`.
    */
   sessionOf?: (hospitalId: string) => string | null;
+  /** Runs before every read; the app passes the sink's `flush`, so queued events are queryable. */
+  beforeRead?: () => Promise<void>;
 }
 
 const NO_METRICS: ShiftMetrics = toMetrics(undefined);
@@ -301,6 +303,7 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
   };
   const visibleTo = options.visibleTo ?? (() => true);
   const sessionOf = options.sessionOf ?? ((hospitalId: string) => hospitalId);
+  const beforeRead = options.beforeRead ?? (() => Promise.resolve());
   const routes: Record<string, Handler> = {
     'GET status': (req, res) =>
       send(res, 200, { enabled: sf !== null && schemaOk() !== false && visibleTo(req) }),
@@ -310,12 +313,14 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
     routes['POST ask'] = guarded(guards, async (hospitalId, req) => {
       const question = questionOf(await bodyOf(req));
       if (!question) throw badRequest();
+      await beforeRead();
       const session = sessionOf(hospitalId);
       return session ? ask(sf, session, question) : NO_SESSION_ANSWER;
     });
     // The cards load as the dialog opens, so they get their own cooldown: an Ask straight after
     // must not wait on them. They still count against the shared hourly budget.
     routes['GET glance'] = guarded({ ...guards, waitFor: cooldown(now) }, async (hospitalId) => {
+      await beforeRead();
       const session = sessionOf(hospitalId);
       // The session key lets the console drop answers from a run that has since been reset.
       return session ? { ...(await measure(sf, session)), session } : { ...NO_METRICS, session };

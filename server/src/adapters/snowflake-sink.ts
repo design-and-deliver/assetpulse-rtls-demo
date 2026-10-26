@@ -6,7 +6,11 @@ import { toHistoryRow, type EventSink, type HistoryRow } from './history-sink.js
 export type RunStatement = (statement: string, binds: Bind[]) => Promise<unknown>;
 
 export interface SnowflakeSinkOptions {
-  /** How often queued rows are sent. */
+  /**
+   * How often queued rows are sent unprompted. Long on purpose: every INSERT wakes the
+   * warehouse (60 s minimum bill), and Insights calls `flush` before it reads, so answers
+   * never wait on this timer.
+   */
   intervalMs?: number;
   /** Rows per INSERT (5 binds each; the SQL API is comfortable well past this). */
   batchMax?: number;
@@ -14,6 +18,9 @@ export interface SnowflakeSinkOptions {
   maxQueue?: number;
   onError?: (err: unknown) => void;
 }
+
+/** 5 min: a busy floor wakes the warehouse at most 12 times an hour from writes. */
+const SEND_INTERVAL_MS = 5 * 60_000;
 
 /** Column order matches `HistoryRow` and the `EVENTS` table in docs/snowflake/setup.sql. */
 function insertSql(rowCount: number): string {
@@ -56,7 +63,7 @@ export class SnowflakeSink implements EventSink {
     this.batchMax = options.batchMax ?? 200;
     this.maxQueue = options.maxQueue ?? 5_000;
     this.onError = options.onError ?? ((err) => console.error('[snowflake-sink]', err));
-    this.timer = setInterval(() => void this.send(), options.intervalMs ?? 5_000);
+    this.timer = setInterval(() => void this.send(), options.intervalMs ?? SEND_INTERVAL_MS);
     this.timer.unref();
   }
 
