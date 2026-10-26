@@ -41,13 +41,36 @@ export function TechPager({ pager, hospitalId }: { pager: Pager; hospitalId: str
             {notice}
           </p>
         )}
+        {/* A link (it navigates) styled as a button: opens the tech's handheld in a phone frame. */}
         <a
           className={styles.pagerPhone}
           href={`/tech?h=${hospitalId}`}
           target="_blank"
           rel="noreferrer"
         >
-          Also on your phone →
+          <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
+            <rect
+              x="4"
+              y="1.5"
+              width="8"
+              height="13"
+              rx="1.8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+            <line
+              x1="7"
+              y1="12"
+              x2="9"
+              y2="12"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+          Smartphone view
+          <span className={styles.srOnly}> (opens in a new tab)</span>
         </a>
       </div>
       {step === 'new' && (
