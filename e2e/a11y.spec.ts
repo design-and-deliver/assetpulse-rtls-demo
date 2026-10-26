@@ -116,6 +116,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('status').filter({ hasText: /Move a few pumps/ })).toBeVisible();
       await expect(page.getByRole('dialog')).toBeHidden();
       await expectNoViolations(page);
+      // A click anywhere else dismisses it.
+      await page.getByRole('heading', { level: 1 }).click();
+      await expect(page.getByText(/Move a few pumps/)).toBeHidden();
     });
 
     test('insights dialog while Snowflake catches up', async ({ page }) => {

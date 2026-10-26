@@ -525,11 +525,27 @@ const HINT_MS = 5_000;
 export function Insights({ hospitalId, active }: { hospitalId: string; active: boolean }) {
   const enabled = useEnabled();
   const [hint, setHint] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  /** The hint leaves on activity, after a few seconds, on a click anywhere else, or on Escape. */
   useEffect(() => {
     if (!hint) return;
     if (active) return setHint(false);
-    const timer = setTimeout(() => setHint(false), HINT_MS);
-    return () => clearTimeout(timer);
+    const hide = () => setHint(false);
+    const timer = setTimeout(hide, HINT_MS);
+    // A click on the button itself re-shows the hint rather than toggling it off and on.
+    const onPointer = (e: PointerEvent) => {
+      if (!anchor.current?.contains(e.target as Node)) hide();
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') hide();
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [hint, active]);
   const dialog = useRef<HTMLDialogElement>(null);
   /** Counts opens, so the cards refresh each time without loading while the dialog is closed. */
@@ -550,7 +566,7 @@ export function Insights({ hospitalId, active }: { hospitalId: string; active: b
 
   return (
     <>
-      <span className={styles.insightsAnchor}>
+      <span ref={anchor} className={styles.insightsAnchor}>
         <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
           <span aria-hidden="true" className={styles.insightsGlyph}>
             &#10022;
