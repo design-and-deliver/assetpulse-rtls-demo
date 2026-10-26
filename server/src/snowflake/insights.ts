@@ -7,6 +7,7 @@ import { isTransient, type AnalystContent, type QueryResult, type SnowflakeRest 
  * - `GET  status`  → `{ enabled }` (the console hides the panel when false)
  * - `POST ask`     → Cortex Analyst turns the question into SQL; we run it and return the rows
  * - `GET  summary` → measured shift numbers (SQL) plus an `AI_SUMMARIZE_AGG` narrative, last 12 hours
+ * - `GET  glance`  → the same measured numbers alone: plain SQL, no Cortex, for the dialog's cards
  * With the layer off, only `status` answers; the rest 404, exactly like any unknown path.
  */
 
@@ -182,17 +183,18 @@ export async function ask(sf: Snowflake, hospitalId: string, question: string): 
   return { ...result, ...(await runAnalystSql(sf, sql)) };
 }
 
+export async function measure(sf: Snowflake, hospitalId: string): Promise<ShiftMetrics> {
+  const { rows } = await sf.query(METRICS_SQL, Array<string>(5).fill(hospitalId));
+  return toMetrics(rows[0]);
+}
+
 export async function summarize(sf: Snowflake, hospitalId: string): Promise<ShiftSummary> {
   const [metrics, prose] = await Promise.all([
-    sf.query(METRICS_SQL, Array<string>(5).fill(hospitalId)),
+    measure(sf, hospitalId),
     sf.query(SUMMARY_SQL, [hospitalId]),
   ]);
   const [events, summary] = prose.rows[0] ?? ['0', null];
-  return {
-    events: Number(events ?? 0),
-    metrics: toMetrics(metrics.rows[0]),
-    summary: summary ?? '',
-  };
+  return { events: Number(events ?? 0), metrics, summary: summary ?? '' };
 }
 
 /** Per-hospital cooldown: 0 when admitted, else how long until this hospital may call again. */
@@ -314,6 +316,11 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
       return ask(sf, hospitalId, question);
     });
     routes['GET summary'] = guarded(guards, (hospitalId) => summarize(sf, hospitalId));
+    // The cards load as the dialog opens, so they get their own cooldown: an Ask straight after
+    // must not wait on them. They still count against the shared hourly budget.
+    routes['GET glance'] = guarded({ ...guards, waitFor: cooldown(now) }, (hospitalId) =>
+      measure(sf, hospitalId),
+    );
   }
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname.slice(INSIGHTS_PREFIX.length);

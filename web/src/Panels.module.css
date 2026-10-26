@@ -694,6 +694,20 @@
   color: var(--text-muted);
 }
 
+/* At-a-glance cards above the tabs; the cards themselves reuse .shiftStats / .shiftStat. */
+.glance {
+  margin: 0 0 14px;
+}
+
+.glanceHeading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* Ask | Shift summary: one task in view at a time. The selected tab's underline is its state. */
 .insightsTabs {
   display: flex;

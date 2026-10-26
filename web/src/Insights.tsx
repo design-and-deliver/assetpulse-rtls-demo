@@ -20,16 +20,19 @@ interface AskResult {
   failed?: string;
 }
 
+/** Mirrors `ShiftMetrics` in server/src/snowflake/insights.ts. */
+interface ShiftMetrics {
+  ordersOpened: number;
+  ordersDelivered: number;
+  medianMinutesToDeliver: number | null;
+  parBreaches: number;
+  pumpMoves: number;
+}
+
 /** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
 interface ShiftSummary {
   events: number;
-  metrics: {
-    ordersOpened: number;
-    ordersDelivered: number;
-    medianMinutesToDeliver: number | null;
-    parBreaches: number;
-    pumpMoves: number;
-  };
+  metrics: ShiftMetrics;
   summary: string;
 }
 
@@ -74,6 +77,40 @@ function Summary({ data }: { data: ShiftSummary }) {
           </p>
         </>
       )}
+    </section>
+  );
+}
+
+/**
+ * The three numbers a charge nurse or supply tech checks first, above both tabs. Plain SQL, no
+ * Cortex, refreshed on every open. History only: the live board already shows what is open now.
+ */
+function Glance({ hospitalId, opens }: { hospitalId: string; opens: number }) {
+  const [metrics, setMetrics] = useState<ShiftMetrics | null>(null);
+  useEffect(() => {
+    if (opens === 0) return;
+    api<ShiftMetrics>(`/api/insights/glance?h=${encodeURIComponent(hospitalId)}`)
+      .then(setMetrics)
+      .catch(() => {}); // The cards are a bonus: on failure they keep their last numbers.
+  }, [hospitalId, opens]);
+  const cards: [string, string][] = [
+    ['Orders delivered', metrics ? String(metrics.ordersDelivered) : '—'],
+    ['Median delivery', metrics ? duration(metrics.medianMinutesToDeliver) : '—'],
+    ['Shelf hit minimum', metrics ? String(metrics.parBreaches) : '—'],
+  ];
+  return (
+    <section className={styles.glance} aria-labelledby="glance-h">
+      <h3 id="glance-h" className={styles.glanceHeading}>
+        Last 12 hours
+      </h3>
+      <dl className={styles.shiftStats}>
+        {cards.map(([label, value]) => (
+          <div key={label} className={styles.shiftStat}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
@@ -347,7 +384,7 @@ function SummaryPanel({
 }
 
 /** Each tab shows only its own latest result, so answers never pile up. */
-function InsightsBody({ hospitalId }: { hospitalId: string }) {
+function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number }) {
   const [tab, setTab] = useState<Tab>('ask');
   const [busy, setBusy] = useState<Tab | null>(null);
   const [error, setError] = useState<{ tab: Tab; text: string } | null>(null);
@@ -397,6 +434,7 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
 
   return (
     <div className={styles.insightsBody}>
+      <Glance hospitalId={hospitalId} opens={opens} />
       <Tabs tab={tab} onSelect={select} />
       <AskPanel hidden={tab !== 'ask'} {...panel('ask')} answer={answer} onAsk={ask} />
       <SummaryPanel
@@ -417,12 +455,15 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
 export function Insights({ hospitalId }: { hospitalId: string }) {
   const enabled = useEnabled();
   const dialog = useRef<HTMLDialogElement>(null);
+  /** Counts opens, so the cards refresh each time without loading while the dialog is closed. */
+  const [opens, setOpens] = useState(0);
   if (!enabled) return null;
   const close = () => dialog.current?.close();
   /** showModal() would focus the first control (×); start on the question box instead. */
   const open = () => {
     dialog.current?.showModal();
     dialog.current?.querySelector('input')?.focus();
+    setOpens((n) => n + 1);
   };
   /** A click on the backdrop lands on the <dialog> itself; clicks inside land on its children. */
   const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
@@ -452,7 +493,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
             &times;
           </button>
         </div>
-        <InsightsBody hospitalId={hospitalId} />
+        <InsightsBody hospitalId={hospitalId} opens={opens} />
       </dialog>
     </>
   );

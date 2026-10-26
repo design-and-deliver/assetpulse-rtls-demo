@@ -372,6 +372,23 @@ describe('insights guardrails', () => {
     expect(await res.json()).toMatchObject({ retryAfterMs: 2_000 });
   });
 
+  it('serves the glance cards from SQL alone, without holding up an Ask', async () => {
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),
+      query: vi.fn(async () => ({ columns: [], rows: [['3', '2', '1.5', '1', '4']] })),
+    };
+    const base = await serve(sf, { now: () => 1_000 });
+    const res = await fetch(`${base}/glance?h=${H}`);
+    expect(await res.json()).toMatchObject({ ordersDelivered: 2, medianMinutesToDeliver: 1.5 });
+    expect(sf.query).toHaveBeenCalledTimes(1);
+    expect(sf.query.mock.calls[0]![0]).not.toContain('AI_');
+    const ask = await fetch(`${base}/ask?h=${H}`, {
+      method: 'POST',
+      body: JSON.stringify({ question: 'Orders by tech?' }),
+    });
+    expect(ask.status).toBe(200);
+  });
+
   it('caps calls per hour across every hospital', async () => {
     const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
     const base = await serve(sf, { hourlyLimit: 2 });
@@ -430,6 +447,7 @@ describe('app with the layer off (the production default)', () => {
     const base = `http://localhost:${app.port}/api/insights`;
     expect(await (await fetch(`${base}/status`)).json()).toEqual({ enabled: false });
     expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(404);
+    expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(404);
     expect((await fetch(`${base}/ask?h=${H}`, { method: 'POST', body: '{}' })).status).toBe(404);
     expect(app.sink).toBeInstanceOf(HistorySink);
   });
