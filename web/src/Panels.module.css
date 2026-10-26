@@ -226,11 +226,6 @@
   }
 }
 
-.phoneOpen {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 /* --- Connection pill --- */
 
 .pill {

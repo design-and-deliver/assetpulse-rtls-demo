@@ -70,8 +70,8 @@ How this was built with Claude Code is described in [docs/ai-assisted-dev.md](do
    for web) in an iframe, with its own socket. It sits on a lock screen; the page lands as a
    notification. Open it, choose **Accept order**, then **Mark 3 pumps delivered**. The shelf
    refills and the PAR status clears.
-3. **Use a second phone.** Choose **Open in its own tab** under the phone, or open
-   `/tech?h=<same id>` on your real phone. Whichever device accepts first wins. The other
+3. **Use a second phone.** Open `/tech?h=<same id>` (the `h` in the console's address bar) on your
+   real phone. Whichever device accepts first wins. The other
    device's card disappears, because the loser's `accept_wo` is rejected with `ALREADY_ASSIGNED`.
 4. **Kill the network.** Open the **Live WebSocket** drawer and choose **Drop connection 10 s**.
    While the console is offline, restock from the phone (it has its own socket). When the console
