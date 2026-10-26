@@ -632,18 +632,9 @@
   border-color: var(--text);
 }
 
-/* Shift summary: measured stats as a grid, then the AI narrative as one short paragraph. */
-.shift {
-  margin: 14px 0 0;
-  padding: 14px 16px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
+/* The session cards: measured stats as a grid of three. */
 .shiftStats {
   display: grid;
-  /* Three columns: the Glance cards fill a row; the summary's two leave a third free. */
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 0;
@@ -666,24 +657,6 @@
   font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-.shiftSub {
-  margin: 14px 0 4px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.shiftProse {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.shiftCredit {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
 /* The no-activity hint: a callout under the Insights button, so the dialog never opens empty. */
@@ -733,42 +706,6 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-/* Ask | Shift summary: one task in view at a time. The selected tab's underline is its state. */
-.insightsTabs {
-  display: flex;
-  gap: 4px;
-  margin: 0 0 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.insightsTab {
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.insightsTab[aria-selected='true'] {
-  color: var(--text);
-  border-bottom-color: var(--focus);
-}
-
-.insightsTab:hover {
-  color: var(--text);
-}
-
-.insightsTab:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-  border-radius: 6px 6px 0 0;
 }
 
 /* A one-cell answer: the number is the answer, the column name its caption. */

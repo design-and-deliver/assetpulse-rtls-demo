@@ -134,7 +134,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       await expect(page.getByRole('button', { name: 'Check again' })).toBeVisible();
-      await expect(page.getByRole('tab')).toHaveCount(0);
+      await expect(page.getByLabel(/Question about/)).toHaveCount(0);
       await expectNoViolations(page, 'dialog');
     });
 
@@ -161,23 +161,6 @@ for (const colorScheme of ['light', 'dark'] as const) {
           },
         });
       });
-      await page.route('**/api/insights/summary**', (route) =>
-        route.fulfill({
-          json: {
-            events: 18,
-            metrics: {
-              ordersOpened: 2,
-              ordersDelivered: 2,
-              medianMinutesToDeliver: 0.07,
-              medianMinutesToAccept: 0.03,
-              parBreaches: 2,
-              pumpMoves: 12,
-            },
-            summary:
-              'Three pumps moved to patient rooms, the shelf hit its minimum, and a tech restocked it.',
-          },
-        }),
-      );
       await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       await page.getByLabel(/Question about/).fill('Median minutes from page to delivery, by tech');
@@ -192,9 +175,6 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('region', { name: 'Query results' })).toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Median minutes' })).toBeVisible();
       await page.getByText('How Cortex answered').click();
-      await expectNoViolations(page, 'dialog');
-      await page.getByRole('tab', { name: 'Shift summary' }).click();
-      await expect(page.getByRole('region', { name: 'Session summary' })).toBeVisible();
       await expectNoViolations(page, 'dialog');
     });
   });

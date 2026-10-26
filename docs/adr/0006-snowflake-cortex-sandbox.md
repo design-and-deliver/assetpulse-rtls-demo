@@ -37,3 +37,8 @@ until this is promoted on purpose.
   put a row access policy on `EVENTS` keyed to the caller, so the database enforces it.
 - Flips if: the target stack drops Snowflake, or Cortex isn't available in the account's region
   (cross-region inference is the first fallback).
+
+## Update 2026-10-26
+
+The `AI_SUMMARIZE_AGG` shift summary was removed: its tab added noise beside the measured session
+cards and Cortex Analyst. Insights now uses Cortex Analyst only; the summary is one revert away.

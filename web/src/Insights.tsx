@@ -3,7 +3,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type KeyboardEvent,
   type MouseEvent,
 } from 'react';
 import appStyles from './App.module.css';
@@ -36,52 +35,10 @@ interface Glance extends ShiftMetrics {
   session: string | null;
 }
 
-/** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
-interface ShiftSummary {
-  events: number;
-  metrics: ShiftMetrics;
-  summary: string;
-}
-
 /** Demo shifts are short, so under a minute reads in seconds. */
 function duration(minutes: number | null): string {
   if (minutes === null) return '—';
   return minutes < 1 ? `${Math.round(minutes * 60)} s` : `${minutes.toFixed(1)} min`;
-}
-
-/** Numbers first (measured in SQL), then the AI's prose, so the facts never depend on the model. */
-function Summary({ data }: { data: ShiftSummary }) {
-  if (data.events === 0) {
-    return <p className={styles.insightsAnswer}>{NO_ACTIVITY}</p>;
-  }
-  const m = data.metrics;
-  // The headline numbers are the Glance cards above the tabs; never show one twice.
-  const stats: [string, string][] = [
-    ['Orders opened', String(m.ordersOpened)],
-    ['Shelf hit minimum', String(m.parBreaches)],
-    ['Pump moves', String(m.pumpMoves)],
-  ];
-  return (
-    <section className={styles.shift} aria-label="Session summary">
-      <dl className={styles.shiftStats}>
-        {stats.map(([label, value]) => (
-          <div key={label} className={styles.shiftStat}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {data.summary && (
-        <>
-          <h4 className={styles.shiftSub}>What happened</h4>
-          <p className={styles.shiftProse}>{data.summary}</p>
-          <p className={styles.shiftCredit}>
-            Written by Cortex AI_SUMMARIZE_AGG from {data.events} events.
-          </p>
-        </>
-      )}
-    </section>
-  );
 }
 
 /**
@@ -284,62 +241,24 @@ function Answer({ result }: { result: AskResult }) {
   );
 }
 
-type Tab = 'ask' | 'summary';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'ask', label: 'Ask' },
-  { id: 'summary', label: 'Shift summary' },
-];
-
-/** ARIA tabs: one tab stop; the arrow keys move between tabs and select them. */
-function Tabs({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) {
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    const next = TABS[(TABS.findIndex((t) => t.id === tab) + 1) % TABS.length]!.id;
-    onSelect(next);
-    document.getElementById(`insights-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Insights" className={styles.insightsTabs} onKeyDown={onKeyDown}>
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          id={`insights-tab-${t.id}`}
-          type="button"
-          role="tab"
-          aria-selected={tab === t.id}
-          aria-controls={`insights-panel-${t.id}`}
-          tabIndex={tab === t.id ? 0 : -1}
-          className={styles.insightsTab}
-          onClick={() => onSelect(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-interface Panel {
-  busy: boolean;
-  /** This panel's own error, so a summary failure never shows on the Ask tab. */
-  error: string | null;
-}
-
 function AskPanel({
-  hidden,
   busy,
   error,
   answer,
   onAsk,
-}: Panel & { hidden: boolean; answer: AskResult | null; onAsk: (q: string) => void }) {
+}: {
+  busy: boolean;
+  error: string | null;
+  answer: AskResult | null;
+  onAsk: (q: string) => void;
+}) {
   const [question, setQuestion] = useState('');
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (question.trim()) onAsk(question.trim());
   };
   return (
-    <div id="insights-panel-ask" role="tabpanel" aria-labelledby="insights-tab-ask" hidden={hidden}>
+    <>
       <form className={styles.insightsForm} onSubmit={onSubmit}>
         <label htmlFor="insights-q" className={styles.srOnly}>
           Question about this hospital’s history
@@ -366,102 +285,47 @@ function AskPanel({
         {error && <p className={styles.insightsError}>{error}</p>}
         {answer && <Answer result={answer} />}
       </div>
-    </div>
+    </>
   );
 }
 
-function SummaryPanel({
-  hidden,
-  busy,
-  error,
-  summary,
-  onRefresh,
-}: Panel & { hidden: boolean; summary: ShiftSummary | null; onRefresh: () => void }) {
-  return (
-    <div
-      id="insights-panel-summary"
-      role="tabpanel"
-      aria-labelledby="insights-tab-summary"
-      hidden={hidden}
-    >
-      <div aria-live="polite">
-        {busy && <p className={styles.muted}>Summarizing this session…</p>}
-        {error && <p className={styles.insightsError}>{error}</p>}
-        {summary && <Summary data={summary} />}
-      </div>
-      <p className={styles.insightsFoot}>
-        <button
-          type="button"
-          className={styles.button}
-          aria-disabled={busy || undefined}
-          onClick={onRefresh}
-        >
-          Refresh
-        </button>
-      </p>
-    </div>
-  );
-}
-
-/** Each tab shows only its own latest result, so answers never pile up. */
+/** The session's numbers, then one question at a time: only the latest answer shows. */
 function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number }) {
-  const [tab, setTab] = useState<Tab>('ask');
-  const [busy, setBusy] = useState<Tab | null>(null);
-  const [error, setError] = useState<{ tab: Tab; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<AskResult | null>(null);
-  const [summary, setSummary] = useState<ShiftSummary | null>(null);
 
   const { glance, failed, check } = useGlance(hospitalId, opens);
 
-  // A reset starts a new session: the last run's answers no longer describe this floor.
+  // A reset starts a new session: the last run's answer no longer describes this floor.
   const session = glance?.session;
   useEffect(() => {
     setAnswer(null);
-    setSummary(null);
     setError(null);
-    setTab('ask');
   }, [session]);
 
-  const h = encodeURIComponent(hospitalId);
   /**
-   * Busy buttons use aria-disabled, not disabled: disabling the focused button would drop a
+   * The busy button uses aria-disabled, not disabled: disabling the focused button would drop a
    * keyboard user's focus out of it. A click while busy is ignored here instead.
    */
-  async function run(on: Tab, work: () => Promise<void>) {
+  async function ask(question: string) {
     if (busy) return;
-    setBusy(on);
+    setBusy(true);
     setError(null);
     try {
-      await work();
-    } catch (err) {
-      setError({ tab: on, text: err instanceof Error ? err.message : String(err) });
-    } finally {
-      setBusy(null);
-    }
-  }
-  const ask = (q: string) =>
-    void run('ask', async () => {
       setAnswer(
-        await api<AskResult>(`/api/insights/ask?h=${h}`, {
+        await api<AskResult>(`/api/insights/ask?h=${encodeURIComponent(hospitalId)}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ question: q }),
+          body: JSON.stringify({ question }),
         }),
       );
-    });
-  const summarize = () =>
-    void run('summary', async () => {
-      setSummary(await api<ShiftSummary>(`/api/insights/summary?h=${h}`));
-    });
-  /** The summary has nothing to ask, so opening its tab the first time fetches it. */
-  const select = (t: Tab) => {
-    setTab(t);
-    if (t === 'summary' && !summary) summarize();
-  };
-  const panel = (t: Tab): Panel => ({
-    busy: busy !== null,
-    error: error?.tab === t ? error.text : null,
-  });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!glance && !failed) {
     return (
@@ -480,14 +344,7 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
   return (
     <div className={styles.insightsBody}>
       {glance && <GlanceCards metrics={glance} />}
-      <Tabs tab={tab} onSelect={select} />
-      <AskPanel hidden={tab !== 'ask'} {...panel('ask')} answer={answer} onAsk={ask} />
-      <SummaryPanel
-        hidden={tab !== 'summary'}
-        {...panel('summary')}
-        summary={summary}
-        onRefresh={summarize}
-      />
+      <AskPanel busy={busy} error={error} answer={answer} onAsk={(q) => void ask(q)} />
     </div>
   );
 }
