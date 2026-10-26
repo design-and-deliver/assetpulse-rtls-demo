@@ -6,8 +6,7 @@ import { isTransient, type AnalystContent, type QueryResult, type SnowflakeRest 
  * `/api/insights/*`: Cortex over this hospital's event history.
  * - `GET  status`  → `{ enabled }` (the console hides the panel when false)
  * - `POST ask`     → Cortex Analyst turns the question into SQL; we run it and return the rows
- * - `GET  summary` → measured session numbers (SQL) plus an `AI_SUMMARIZE_AGG` narrative
- * - `GET  glance`  → the same measured numbers alone: plain SQL, no Cortex, for the dialog's cards
+ * - `GET  glance`  → the session's measured numbers: plain SQL, no Cortex, for the dialog's cards
  * Every route is scoped to the floor's current session (see `WorldHub.session`): history is
  * recorded under that key, so the hospital filter every query already carries scopes it too.
  * With the layer off, only `status` answers; the rest 404, exactly like any unknown path.
@@ -42,15 +41,7 @@ export interface AskResult {
   failed?: string;
 }
 
-const SUMMARY_SQL = `
-SELECT COUNT(*) AS EVENTS, AI_SUMMARIZE_AGG(LINE) AS SUMMARY FROM (
-  SELECT TO_VARCHAR(EVENT_TS, 'HH24:MI:SS') || ' ' || EVENT_TYPE || ' ' || TO_VARCHAR(PAYLOAD) AS LINE
-  FROM EVENTS
-  WHERE HOSPITAL_ID = ?
-  ORDER BY EVENT_TS
-)`;
-
-/** Measured: every number on the summary comes from here, not from the AI. */
+/** Measured in SQL, never by the AI: the numbers on the dialog's cards. */
 const METRICS_SQL = `
 SELECT
   (SELECT COUNT(*) FROM WORK_ORDERS WHERE HOSPITAL_ID = ? AND OPENED_AT IS NOT NULL) AS ORDERS_OPENED,
@@ -58,32 +49,29 @@ SELECT
   (SELECT MEDIAN(MINUTES_TO_DELIVER) FROM WORK_ORDERS WHERE HOSPITAL_ID = ?) AS MEDIAN_MINUTES_TO_DELIVER,
   (SELECT COUNT(*) FROM PAR_ALERTS WHERE HOSPITAL_ID = ? AND STATE = 'BREACH') AS PAR_BREACHES,
   (SELECT COUNT(*) FROM ASSET_MOVES WHERE HOSPITAL_ID = ?) AS PUMP_MOVES,
-  (SELECT COUNT(*) FROM EVENTS WHERE HOSPITAL_ID = ?) AS EVENTS`;
+  (SELECT COUNT(*) FROM EVENTS WHERE HOSPITAL_ID = ?) AS EVENTS,
+  (SELECT MEDIAN(MINUTES_TO_ACCEPT) FROM WORK_ORDERS WHERE HOSPITAL_ID = ?) AS MEDIAN_MINUTES_TO_ACCEPT`;
 
 export interface ShiftMetrics {
   ordersOpened: number;
   ordersDelivered: number;
   /** null until an order has been delivered in the window. */
   medianMinutesToDeliver: number | null;
+  /** Page to a tech's accept: how long the floor waited for someone to pick it up. */
+  medianMinutesToAccept: number | null;
   parBreaches: number;
   pumpMoves: number;
   /** Every recorded event; 0 means nothing has happened on this floor yet. */
   events: number;
 }
 
-export interface ShiftSummary {
-  events: number;
-  metrics: ShiftMetrics;
-  /** AI_SUMMARIZE_AGG prose; the metrics are the facts. */
-  summary: string;
-}
-
 function toMetrics(row: (string | null)[] | undefined): ShiftMetrics {
-  const [opened, delivered, median, breaches, moves, events] = row ?? [];
+  const [opened, delivered, median, breaches, moves, events, accept] = row ?? [];
   return {
     ordersOpened: Number(opened ?? 0),
     ordersDelivered: Number(delivered ?? 0),
     medianMinutesToDeliver: median == null ? null : Number(median),
+    medianMinutesToAccept: accept == null ? null : Number(accept),
     parBreaches: Number(breaches ?? 0),
     pumpMoves: Number(moves ?? 0),
     events: Number(events ?? 0),
@@ -187,17 +175,8 @@ export async function ask(sf: Snowflake, hospitalId: string, question: string): 
 }
 
 export async function measure(sf: Snowflake, hospitalId: string): Promise<ShiftMetrics> {
-  const { rows } = await sf.query(METRICS_SQL, Array<string>(6).fill(hospitalId));
+  const { rows } = await sf.query(METRICS_SQL, Array<string>(7).fill(hospitalId));
   return toMetrics(rows[0]);
-}
-
-export async function summarize(sf: Snowflake, hospitalId: string): Promise<ShiftSummary> {
-  const [metrics, prose] = await Promise.all([
-    measure(sf, hospitalId),
-    sf.query(SUMMARY_SQL, [hospitalId]),
-  ]);
-  const [events, summary] = prose.rows[0] ?? ['0', null];
-  return { events: Number(events ?? 0), metrics, summary: summary ?? '' };
 }
 
 /** Per-hospital cooldown: 0 when admitted, else how long until this hospital may call again. */
@@ -333,10 +312,6 @@ export function insightsHandler(sf: Snowflake | null, options: InsightsOptions =
       if (!question) throw badRequest();
       const session = sessionOf(hospitalId);
       return session ? ask(sf, session, question) : NO_SESSION_ANSWER;
-    });
-    routes['GET summary'] = guarded(guards, async (hospitalId) => {
-      const session = sessionOf(hospitalId);
-      return session ? summarize(sf, session) : { events: 0, metrics: NO_METRICS, summary: '' };
     });
     // The cards load as the dialog opens, so they get their own cooldown: an Ask straight after
     // must not wait on them. They still count against the shared hourly budget.

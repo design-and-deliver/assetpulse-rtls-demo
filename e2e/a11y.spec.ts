@@ -22,6 +22,7 @@ async function mockGlance(page: Page, events: number): Promise<void> {
         ordersOpened: events ? 2 : 0,
         ordersDelivered: events ? 2 : 0,
         medianMinutesToDeliver: events ? 0.07 : null,
+        medianMinutesToAccept: events ? 0.03 : null,
         parBreaches: events ? 2 : 0,
         pumpMoves: events ? 12 : 0,
       },
@@ -108,6 +109,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.getByLabel(/Question about/).fill('Orders by tech');
       await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
       await expectNoViolations(page, 'dialog');
+      // Each open starts fresh: an empty question box, with the focus in it.
+      await page.getByRole('button', { name: 'Close' }).click();
+      await page.getByRole('button', { name: /Insights/ }).click();
+      await expect(page.getByLabel(/Question about/)).toHaveValue('');
+      await expect(page.getByLabel(/Question about/)).toBeFocused();
     });
 
     test('insights hint before any activity', async ({ page }) => {
@@ -133,7 +139,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       await expect(page.getByRole('button', { name: 'Check again' })).toBeVisible();
-      await expect(page.getByRole('tab')).toHaveCount(0);
+      await expect(page.getByLabel(/Question about/)).toHaveCount(0);
       await expectNoViolations(page, 'dialog');
     });
 
@@ -160,37 +166,20 @@ for (const colorScheme of ['light', 'dark'] as const) {
           },
         });
       });
-      await page.route('**/api/insights/summary**', (route) =>
-        route.fulfill({
-          json: {
-            events: 18,
-            metrics: {
-              ordersOpened: 2,
-              ordersDelivered: 2,
-              medianMinutesToDeliver: 0.07,
-              parBreaches: 2,
-              pumpMoves: 12,
-            },
-            summary:
-              'Three pumps moved to patient rooms, the shelf hit its minimum, and a tech restocked it.',
-          },
-        }),
-      );
       await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
-      const chip = page.getByRole('button', { name: 'Median delivery' });
-      await chip.focus();
+      await page.getByLabel(/Question about/).fill('Median minutes from page to delivery, by tech');
+      const ask = page.getByRole('button', { name: 'Ask', exact: true });
+      await ask.focus();
       await page.keyboard.press('Enter');
-      // While Cortex works, the pressed chip keeps keyboard focus (it must not go disabled).
-      await expect(chip).toHaveAttribute('aria-disabled', 'true');
-      await expect(chip).toBeFocused();
+      // While Cortex works, the pressed button keeps keyboard focus (it must not go disabled).
+      const asking = page.getByRole('button', { name: 'Asking…' });
+      await expect(asking).toHaveAttribute('aria-disabled', 'true');
+      await expect(asking).toBeFocused();
       releaseAsk();
       await expect(page.getByRole('region', { name: 'Query results' })).toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Median minutes' })).toBeVisible();
       await page.getByText('How Cortex answered').click();
-      await expectNoViolations(page, 'dialog');
-      await page.getByRole('tab', { name: 'Shift summary' }).click();
-      await expect(page.getByRole('region', { name: 'Session summary' })).toBeVisible();
       await expectNoViolations(page, 'dialog');
     });
   });

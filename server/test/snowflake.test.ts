@@ -20,7 +20,7 @@ import {
   insightsHandler,
   localOrPublic,
   refusalFor,
-  summarize,
+  measure,
   type InsightsOptions,
 } from '../src/snowflake/insights.js';
 import { jwtAccount, signJwt, SnowflakeRest, toIso } from '../src/snowflake/rest.js';
@@ -266,39 +266,36 @@ describe('insights', () => {
     expect(sf.query).not.toHaveBeenCalled();
   });
 
-  it('summarizes: measured metrics from SQL plus AI prose, hospital always a bind', async () => {
+  it('measures the session in SQL, hospital always a bind', async () => {
     const sf = {
       askAnalyst: vi.fn(),
-      query: vi.fn(async (sql: string) =>
-        sql.includes('AI_SUMMARIZE_AGG')
-          ? { columns: [], rows: [['12', 'Quiet shift.']] }
-          : { columns: [], rows: [['2', '1', '0.75', '2', '6', '12']] },
-      ),
+      query: vi.fn(async () => ({
+        columns: [],
+        rows: [['2', '1', '0.75', '2', '6', '12', '0.25']],
+      })),
     };
-    expect(await summarize(sf, H)).toEqual({
+    expect(await measure(sf, H)).toEqual({
+      ordersOpened: 2,
+      ordersDelivered: 1,
+      medianMinutesToDeliver: 0.75,
+      medianMinutesToAccept: 0.25,
+      parBreaches: 2,
+      pumpMoves: 6,
       events: 12,
-      summary: 'Quiet shift.',
-      metrics: {
-        ordersOpened: 2,
-        ordersDelivered: 1,
-        medianMinutesToDeliver: 0.75,
-        parBreaches: 2,
-        pumpMoves: 6,
-        events: 12,
-      },
     });
-    for (const [sql, binds] of sf.query.mock.calls as unknown as [string, string[]][]) {
-      expect(sql).not.toContain(H);
-      expect(binds.every((b) => b === H)).toBe(true);
-    }
+    const [sql, binds] = sf.query.mock.calls[0] as unknown as [string, string[]];
+    expect(sql).not.toContain(H);
+    expect(binds.every((b) => b === H)).toBe(true);
   });
 
-  it('reports no median until an order has been delivered', async () => {
+  it('reports no medians until an order has been accepted or delivered', async () => {
     const sf = {
       askAnalyst: vi.fn(),
       query: vi.fn(async () => ({ columns: [], rows: [['0', '0', null, '0', '0']] })),
     };
-    expect((await summarize(sf, H)).metrics.medianMinutesToDeliver).toBeNull();
+    const metrics = await measure(sf, H);
+    expect(metrics.medianMinutesToDeliver).toBeNull();
+    expect(metrics.medianMinutesToAccept).toBeNull();
   });
 });
 
@@ -335,7 +332,7 @@ describe('schema drift check', () => {
 describe('insights guardrails', () => {
   const status = (code: number) =>
     Object.assign(new Error(`snowflake ${code}`), { snowflakeStatus: code });
-  const okSummary = () => ({ columns: [], rows: [['0', '0', null, '0', '0']] });
+  const okMetrics = () => ({ columns: [], rows: [['0', '0', null, '0', '0']] });
   let server: http.Server | undefined;
   afterEach(() => server?.close());
 
@@ -358,25 +355,25 @@ describe('insights guardrails', () => {
 
   it('retries a transient failure once, and does not retry a 4xx', async () => {
     const flaky = { askAnalyst: vi.fn(), query: vi.fn() };
-    flaky.query.mockRejectedValueOnce(status(503)).mockResolvedValue(okSummary());
+    flaky.query.mockRejectedValueOnce(status(503)).mockResolvedValue(okMetrics());
     let base = await serve(flaky);
-    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(200);
+    expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(200);
     server!.close();
 
     const broken = { askAnalyst: vi.fn(), query: vi.fn(async () => Promise.reject(status(422))) };
     vi.spyOn(console, 'error').mockImplementationOnce(() => {});
     base = await serve(broken);
-    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(502);
-    expect(broken.query).toHaveBeenCalledTimes(2); // the two summary statements, no retry
+    expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(502);
+    expect(broken.query).toHaveBeenCalledTimes(1); // a 4xx is not retried
   });
 
   it('tells a quick second click how long to wait', async () => {
-    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okMetrics()) };
     let t = 1_000;
     const base = await serve(sf, { now: () => t });
-    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(200);
+    expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(200);
     t += 1_000;
-    const res = await fetch(`${base}/summary?h=${H}`);
+    const res = await fetch(`${base}/glance?h=${H}`);
     expect(res.status).toBe(429);
     expect(await res.json()).toMatchObject({ retryAfterMs: 2_000 });
   });
@@ -406,7 +403,7 @@ describe('insights guardrails', () => {
     const sessions = new Map([[H, `${H}-run1`]]);
     const base = await serve(sf, { sessionOf: (h) => sessions.get(h) ?? null });
     await fetch(`${base}/glance?h=${H}`);
-    expect(sf.query.mock.calls[0]![1]).toEqual(Array(6).fill(`${H}-run1`));
+    expect(sf.query.mock.calls[0]![1]).toEqual(Array(7).fill(`${H}-run1`));
     await fetch(`${base}/ask?h=${H}`, {
       method: 'POST',
       body: JSON.stringify({ question: 'Orders by tech?' }),
@@ -420,15 +417,15 @@ describe('insights guardrails', () => {
   });
 
   it('caps calls per hour across every hospital', async () => {
-    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okMetrics()) };
     const base = await serve(sf, { hourlyLimit: 2 });
-    expect((await fetch(`${base}/summary?h=aaaa0001`)).status).toBe(200);
-    expect((await fetch(`${base}/summary?h=aaaa0002`)).status).toBe(200);
-    expect((await fetch(`${base}/summary?h=aaaa0003`)).status).toBe(503);
+    expect((await fetch(`${base}/glance?h=aaaa0001`)).status).toBe(200);
+    expect((await fetch(`${base}/glance?h=aaaa0002`)).status).toBe(200);
+    expect((await fetch(`${base}/glance?h=aaaa0003`)).status).toBe(503);
   });
 
   it('shows on localhost, hides on other hosts until made public, and 404s hidden routes', async () => {
-    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
+    const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okMetrics()) };
     const base = await serve(sf, { visibleTo: localOrPublic(false) });
     // fetch() drops a custom Host header, so send raw requests.
     const as = (host: string, p: string) =>
@@ -443,7 +440,7 @@ describe('insights guardrails', () => {
       });
     expect((await as('localhost:5173', 'status')).body).toEqual({ enabled: true });
     expect((await as('assetpulse.proswitch.ai', 'status')).body).toEqual({ enabled: false });
-    expect((await as('assetpulse.proswitch.ai', `summary?h=${H}`)).status).toBe(404);
+    expect((await as('assetpulse.proswitch.ai', `glance?h=${H}`)).status).toBe(404);
     expect(sf.query).not.toHaveBeenCalled();
     const req = { headers: { host: 'assetpulse.proswitch.ai' } } as http.IncomingMessage;
     expect(localOrPublic(true)(req)).toBe(true);
@@ -476,7 +473,6 @@ describe('app with the layer off (the production default)', () => {
     });
     const base = `http://localhost:${app.port}/api/insights`;
     expect(await (await fetch(`${base}/status`)).json()).toEqual({ enabled: false });
-    expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(404);
     expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(404);
     expect((await fetch(`${base}/ask?h=${H}`, { method: 'POST', body: '{}' })).status).toBe(404);
     expect(app.sink).toBeInstanceOf(HistorySink);
