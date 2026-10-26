@@ -206,14 +206,16 @@ export function Stock({
     <>
       <section className={styles.panel} aria-labelledby="shelf-heading">
         <div className={styles.panelTop}>
-          {/* The shelf's rule, top left: what full is, and where an order fires. */}
-          <p className={styles.panelRule}>
-            PAR {PAR.max} · Reorder at {PAR.min}
-          </p>
           <h2 id="shelf-heading" className={styles.heading}>
             Clean Utility
           </h2>
-          {par && <BufferBadge clean={clean} par={par} />}
+          <div className={styles.panelSide}>
+            {/* The shelf's rule, centred between the heading and its live status. */}
+            <p className={styles.panelRule}>
+              PAR {PAR.max} · Reorder at {PAR.min}
+            </p>
+            {par && <BufferBadge clean={clean} par={par} />}
+          </div>
         </div>
         <DropZone zoneId={PAR.zoneId} className={styles.shelf} assets={assets} dm={dm} />
       </section>
