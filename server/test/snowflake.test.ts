@@ -23,7 +23,7 @@ import {
   summarize,
   type InsightsOptions,
 } from '../src/snowflake/insights.js';
-import { jwtAccount, signJwt, SnowflakeRest } from '../src/snowflake/rest.js';
+import { jwtAccount, signJwt, SnowflakeRest, toIso } from '../src/snowflake/rest.js';
 import { checkSchema, EXPECTED_COLUMNS, missingColumns } from '../src/snowflake/schema.js';
 
 const H = 'hosp0001';
@@ -155,6 +155,14 @@ describe('SnowflakeRest', () => {
       'KEYPAIR_JWT',
     );
     expect(fetchImpl.mock.calls[1]![0]).toMatch(/\/api\/v2\/statements\/abc$/);
+  });
+
+  it('turns timestamp and date cells into ISO strings, leaving other cells alone', () => {
+    expect(toIso('1792988127.933000000 1440', 'timestamp_tz')).toBe('2026-10-26T04:15:27.933Z');
+    expect(toIso('1792988127.933000000', 'timestamp_ntz')).toBe('2026-10-26T04:15:27.933Z');
+    expect(toIso('20752', 'date')).toBe('2026-10-26');
+    expect(toIso('0.0667', 'fixed')).toBe('0.0667');
+    expect(toIso(null, 'timestamp_ltz')).toBeNull();
   });
 
   it('throws Snowflake’s message on an error status', async () => {

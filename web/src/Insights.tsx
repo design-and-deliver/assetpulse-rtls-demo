@@ -150,8 +150,21 @@ const EXAMPLES = [
   { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
 ];
 
-/** SQL returns numbers as strings with many decimals ("0.066666667"); show at most two. */
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const TIMESTAMP_FORMAT: Intl.DateTimeFormatOptions = {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+};
+
+/**
+ * Timestamps (ISO from the server) read as local time. SQL returns numbers as strings with many
+ * decimals ("0.066666667"); show at most two.
+ */
 function formatCell(cell: string): string {
+  if (ISO_TIMESTAMP.test(cell)) return new Date(cell).toLocaleString(undefined, TIMESTAMP_FORMAT);
   const n = Number(cell);
   return cell.trim() !== '' && Number.isFinite(n)
     ? n.toLocaleString(undefined, { maximumFractionDigits: 2 })
