@@ -66,7 +66,7 @@ function GlanceCards({ metrics }: { metrics: ShiftMetrics }) {
   // Response time first: how long the floor waited for a tech to pick up the page.
   const cards: [string, string][] = [
     ['Median time to accept', duration(metrics.medianMinutesToAccept)],
-    ['Median delivery', duration(metrics.medianMinutesToDeliver)],
+    ['Median time to deliver', duration(metrics.medianMinutesToDeliver)],
     ['Orders delivered', String(metrics.ordersDelivered)],
   ];
   return (
