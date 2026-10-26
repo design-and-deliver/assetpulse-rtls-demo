@@ -109,7 +109,7 @@ function TechApp({ session }: { session: TechSession }) {
             </View>
             <Text style={styles.emptyTitle}>All caught up</Text>
             <Text style={styles.emptyText}>
-              When the clean shelf drops to its minimum, a restock order is paged here.
+              We’ll let you know when it’s time to restock.
             </Text>
           </View>
         ) : (
