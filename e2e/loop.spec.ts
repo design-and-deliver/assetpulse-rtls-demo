@@ -45,7 +45,7 @@ test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume r
     await expect(pager.getByRole('button', { name: 'Complete restock (+3)' })).toBeVisible();
     // The phone lists only open orders and its own, so another tech's acceptance clears it.
     await expect(phone.getByRole('button', { name: 'Accept' })).toBeHidden();
-    await expect(phone.getByText(/^Nothing to restock/)).toBeVisible();
+    await expect(phone.getByText('All caught up')).toBeVisible();
   });
 
   await test.step('restock clears PAR', async () => {

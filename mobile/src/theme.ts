@@ -13,6 +13,7 @@ export interface Palette {
   onStatus: string;
   statusInUse: string;
   ok: string;
+  okSoft: string;
   alert: string;
   alertSoft: string;
   warn: string;
@@ -27,10 +28,11 @@ const LIGHT: Palette = {
   textMuted: '#5b6874',
   onStatus: '#ffffff',
   statusInUse: '#3a6ea5',
-  ok: '#2f7d6d',
+  ok: '#28705f',
+  okSoft: '#e6f2ef',
   alert: '#c0392b',
   alertSoft: '#fbeceb',
-  warn: '#9a6a2f',
+  warn: '#8a5c24',
   warnSoft: '#f8efe2',
 };
 
@@ -43,6 +45,7 @@ const DARK: Palette = {
   onStatus: '#0f1418',
   statusInUse: '#6a9fd6',
   ok: '#4fae99',
+  okSoft: '#17292a',
   alert: '#ef6b5b',
   alertSoft: '#3a1f1c',
   warn: '#d6a15e',

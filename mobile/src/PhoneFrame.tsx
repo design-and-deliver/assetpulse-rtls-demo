@@ -28,7 +28,7 @@ export function PhoneFrame({ palette, children }: { palette: Palette; children: 
       </View>
       {/* The rim keeps the dark bezel visible on dark mode's near-black page. */}
       <View style={[styles.bezel, { borderColor: palette.border }]}>
-        <View style={[styles.screen, { height: screenHeight, backgroundColor: palette.bg }]}>
+        <View style={[styles.screen, { height: screenHeight, backgroundColor: palette.surface }]}>
           <View style={styles.island} aria-hidden />
           {children}
         </View>
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     width: SCREEN.width,
     borderRadius: 40,
     overflow: 'hidden',
-    // Clears the island, the way a phone's status bar does.
+    // Clears the island, the way a phone's status bar does; it shares the app bar's colour.
     paddingTop: 34,
   },
   island: {
