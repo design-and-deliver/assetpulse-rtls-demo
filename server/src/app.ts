@@ -123,6 +123,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
   const insights = insightsHandler(snowflake.rest, {
     schemaOk: snowflake.schemaOk,
     visibleTo: localOrPublic(process.env.INSIGHTS_PUBLIC === '1'),
+    sessionOf: (hospitalId) => registry.get(hospitalId)?.session ?? null,
   });
   const registry = new WorldRegistry({
     ...options,

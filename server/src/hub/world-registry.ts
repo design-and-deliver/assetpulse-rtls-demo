@@ -84,6 +84,12 @@ export class WorldHub {
   private flushTimer: NodeJS.Timeout | null = null;
   /** When the last socket left; null while any socket is attached. */
   idleSince: number | null;
+  /**
+   * This floor's history key: the hospital id plus when this run began. Recorded history is
+   * keyed by it, so Insights only ever sees the run the visitor is looking at. A reset starts a
+   * new one, and so does a world rebuilt after idle eviction.
+   */
+  session: string;
   /** Device key → "Tech N", numbered in first-seen order, so each device keeps one name. */
   private readonly techNames = new Map<string, string>();
 
@@ -95,6 +101,13 @@ export class WorldHub {
     this.log = new EventLog({ capacity: deps.eventLogSize, now: deps.now });
     this.simulator = new Simulator(this.world, { seed: deps.seed });
     this.idleSince = deps.now();
+    this.session = this.newSession();
+  }
+
+  private runs = 0;
+  /** Start time keeps a rebuilt world's key new; the run count keeps two resets in 1 ms apart. */
+  private newSession(): string {
+    return `${this.hospitalId}-${this.deps.now().toString(36)}${++this.runs}`;
   }
 
   /** The demo has no login: a device's stored key earns the next "Tech N", then keeps it. */
@@ -215,7 +228,10 @@ export class WorldHub {
     };
     try {
       this.publish(apply(this.world, command));
-      if (command.name === 'reset') this.resyncAll();
+      if (command.name === 'reset') {
+        this.session = this.newSession();
+        this.resyncAll();
+      }
       return ack;
     } catch (err) {
       if (!(err instanceof WorldError)) throw err;
@@ -226,7 +242,7 @@ export class WorldHub {
   private publish(events: WorldEvent[]): void {
     for (const event of events) {
       const stamped = this.log.append(event);
-      this.deps.sink.record(this.hospitalId, stamped);
+      this.deps.sink.record(this.session, stamped);
       if (stamped.type === FrameType.workOrder) {
         this.deps.serviceNow.submit(this.hospitalId, stamped.order);
       }

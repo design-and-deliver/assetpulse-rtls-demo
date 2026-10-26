@@ -12,6 +12,23 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-prac
 /** A fresh sandbox per run, like loop.spec.ts. */
 const hospital = `a11y${Date.now().toString(36).slice(-4)}`;
 
+/** The dialog's cards; `events: 0` is a floor with nothing recorded yet (the empty state). */
+async function mockGlance(page: Page, events: number): Promise<void> {
+  await page.route('**/api/insights/glance**', (route) =>
+    route.fulfill({
+      json: {
+        session: events ? `${hospital}-run1` : null,
+        events,
+        ordersOpened: events ? 2 : 0,
+        ordersDelivered: events ? 2 : 0,
+        medianMinutesToDeliver: events ? 0.07 : null,
+        parBreaches: events ? 2 : 0,
+        pumpMoves: events ? 12 : 0,
+      },
+    }),
+  );
+}
+
 async function expectNoViolations(page: Page, include?: string): Promise<void> {
   const builder = new AxeBuilder({ page }).withTags(TAGS);
   const { violations } = await (include ? builder.include(include) : builder).analyze();
@@ -64,12 +81,25 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.route('**/api/insights/status', (route) =>
         route.fulfill({ json: { enabled: true } }),
       );
+      await mockGlance(page, 18);
       await page.goto(`/?h=${hospital}`);
       await page.getByRole('button', { name: /Insights/ }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
       // Type first: a disabled Ask is exempt from contrast, the enabled one is not.
       await page.getByLabel(/Question about/).fill('Orders by tech');
       await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
+      await expectNoViolations(page, 'dialog');
+    });
+
+    test('insights dialog before any activity', async ({ page }) => {
+      await page.route('**/api/insights/status', (route) =>
+        route.fulfill({ json: { enabled: true } }),
+      );
+      await mockGlance(page, 0);
+      await page.goto(`/?h=${hospital}`);
+      await page.getByRole('button', { name: /Insights/ }).click();
+      await expect(page.getByRole('button', { name: 'Check again' })).toBeVisible();
+      await expect(page.getByRole('tab')).toHaveCount(0);
       await expectNoViolations(page, 'dialog');
     });
 
@@ -80,6 +110,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.route('**/api/insights/status', (route) =>
         route.fulfill({ json: { enabled: true } }),
       );
+      await mockGlance(page, 18);
       await page.route('**/api/insights/ask**', async (route) => {
         await askHeld;
         await route.fulfill({
@@ -125,7 +156,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.getByText('How Cortex answered').click();
       await expectNoViolations(page, 'dialog');
       await page.getByRole('tab', { name: 'Shift summary' }).click();
-      await expect(page.getByRole('heading', { name: 'Last 12 hours' })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Session summary' })).toBeVisible();
       await expectNoViolations(page, 'dialog');
     });
   });

@@ -264,7 +264,7 @@ describe('insights', () => {
       query: vi.fn(async (sql: string) =>
         sql.includes('AI_SUMMARIZE_AGG')
           ? { columns: [], rows: [['12', 'Quiet shift.']] }
-          : { columns: [], rows: [['2', '1', '0.75', '2', '6']] },
+          : { columns: [], rows: [['2', '1', '0.75', '2', '6', '12']] },
       ),
     };
     expect(await summarize(sf, H)).toEqual({
@@ -276,6 +276,7 @@ describe('insights', () => {
         medianMinutesToDeliver: 0.75,
         parBreaches: 2,
         pumpMoves: 6,
+        events: 12,
       },
     });
     for (const [sql, binds] of sf.query.mock.calls as unknown as [string, string[]][]) {
@@ -387,6 +388,27 @@ describe('insights guardrails', () => {
       body: JSON.stringify({ question: 'Orders by tech?' }),
     });
     expect(ask.status).toBe(200);
+  });
+
+  it('scopes every route to the live session, and reports nothing when no floor is running', async () => {
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),
+      query: vi.fn(async () => ({ columns: [], rows: [['1', '1', '0.5', '0', '3', '9']] })),
+    };
+    const sessions = new Map([[H, `${H}-run1`]]);
+    const base = await serve(sf, { sessionOf: (h) => sessions.get(h) ?? null });
+    await fetch(`${base}/glance?h=${H}`);
+    expect(sf.query.mock.calls[0]![1]).toEqual(Array(6).fill(`${H}-run1`));
+    await fetch(`${base}/ask?h=${H}`, {
+      method: 'POST',
+      body: JSON.stringify({ question: 'Orders by tech?' }),
+    });
+    expect(sf.askAnalyst.mock.calls[0]![0]).toContain(`HOSPITAL_ID = '${H}-run1'`);
+
+    sf.query.mockClear();
+    const idle = await (await fetch(`${base}/glance?h=aaaa0009`)).json();
+    expect(idle).toMatchObject({ events: 0, ordersDelivered: 0 });
+    expect(sf.query).not.toHaveBeenCalled();
   });
 
   it('caps calls per hour across every hospital', async () => {

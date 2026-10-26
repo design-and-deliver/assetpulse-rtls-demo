@@ -27,6 +27,12 @@ interface ShiftMetrics {
   medianMinutesToDeliver: number | null;
   parBreaches: number;
   pumpMoves: number;
+  events: number;
+}
+
+/** The `glance` route's body: the metrics plus which run they describe (null: no floor running). */
+interface Glance extends ShiftMetrics {
+  session: string | null;
 }
 
 /** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
@@ -54,10 +60,7 @@ function Summary({ data }: { data: ShiftSummary }) {
     ['Pump moves', String(m.pumpMoves)],
   ];
   return (
-    <section className={styles.shift} aria-labelledby="shift-h">
-      <h3 id="shift-h" className={styles.shiftHeading}>
-        Last 12 hours
-      </h3>
+    <section className={styles.shift} aria-label="Session summary">
       <dl className={styles.shiftStats}>
         {stats.map(([label, value]) => (
           <div key={label} className={styles.shiftStat}>
@@ -80,26 +83,36 @@ function Summary({ data }: { data: ShiftSummary }) {
 }
 
 /**
- * The three numbers a charge nurse or supply tech checks first, above both tabs. Plain SQL, no
- * Cortex, refreshed on every open. History only: the live board already shows what is open now.
+ * The cards' numbers, fetched on every open: plain SQL, no Cortex. `failed` lets the dialog
+ * fall back to the tabs alone, since the cards are a bonus and Ask may still work.
  */
-function Glance({ hospitalId, opens }: { hospitalId: string; opens: number }) {
-  const [metrics, setMetrics] = useState<ShiftMetrics | null>(null);
+function useGlance(hospitalId: string, opens: number) {
+  const [glance, setGlance] = useState<Glance | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [checks, setChecks] = useState(0);
   useEffect(() => {
     if (opens === 0) return;
-    api<ShiftMetrics>(`/api/insights/glance?h=${encodeURIComponent(hospitalId)}`)
-      .then(setMetrics)
-      .catch(() => {}); // The cards are a bonus: on failure they keep their last numbers.
-  }, [hospitalId, opens]);
+    api<Glance>(`/api/insights/glance?h=${encodeURIComponent(hospitalId)}`)
+      .then((g) => {
+        setGlance(g);
+        setFailed(false);
+      })
+      .catch(() => setFailed(true));
+  }, [hospitalId, opens, checks]);
+  return { glance, failed, check: () => setChecks((n) => n + 1) };
+}
+
+/** The three numbers a charge nurse or supply tech checks first, above both tabs. */
+function GlanceCards({ metrics }: { metrics: ShiftMetrics }) {
   const cards: [string, string][] = [
-    ['Orders delivered', metrics ? String(metrics.ordersDelivered) : '—'],
-    ['Median delivery', metrics ? duration(metrics.medianMinutesToDeliver) : '—'],
-    ['Shelf hit minimum', metrics ? String(metrics.parBreaches) : '—'],
+    ['Orders delivered', String(metrics.ordersDelivered)],
+    ['Median delivery', duration(metrics.medianMinutesToDeliver)],
+    ['Shelf hit minimum', String(metrics.parBreaches)],
   ];
   return (
     <section className={styles.glance} aria-labelledby="glance-h">
       <h3 id="glance-h" className={styles.glanceHeading}>
-        Last 12 hours
+        This session
       </h3>
       <dl className={styles.shiftStats}>
         {cards.map(([label, value]) => (
@@ -113,9 +126,26 @@ function Glance({ hospitalId, opens }: { hospitalId: string; opens: number }) {
   );
 }
 
+/** Insights covers only this session, so a fresh floor has nothing to analyze yet. */
+function NothingYet({ onCheck }: { onCheck: () => void }) {
+  return (
+    <div className={styles.insightsEmpty}>
+      <p>
+        Move a few pumps or work an order on the floor, then check again to see this session’s
+        insights.
+      </p>
+      <p className={styles.insightsFoot}>
+        <button type="button" className={styles.button} onClick={onCheck}>
+          Check again
+        </button>
+      </p>
+    </div>
+  );
+}
+
 /** Short chip labels; the full question goes into the box, so the visitor sees what was asked. */
 const EXAMPLES = [
-  { label: 'Orders today', question: 'How many work orders were opened today?' },
+  { label: 'Orders opened', question: 'How many work orders were opened?' },
   { label: 'Median delivery', question: 'Median minutes from page to delivery, by tech' },
   { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
 ];
@@ -363,7 +393,7 @@ function SummaryPanel({
       hidden={hidden}
     >
       <div aria-live="polite">
-        {busy && <p className={styles.muted}>Summarizing the last 12 hours…</p>}
+        {busy && <p className={styles.muted}>Summarizing this session…</p>}
         {error && <p className={styles.insightsError}>{error}</p>}
         {summary && <Summary data={summary} />}
       </div>
@@ -388,6 +418,17 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
   const [error, setError] = useState<{ tab: Tab; text: string } | null>(null);
   const [answer, setAnswer] = useState<AskResult | null>(null);
   const [summary, setSummary] = useState<ShiftSummary | null>(null);
+
+  const { glance, failed, check } = useGlance(hospitalId, opens);
+
+  // A reset starts a new session: the last run's answers no longer describe this floor.
+  const session = glance?.session;
+  useEffect(() => {
+    setAnswer(null);
+    setSummary(null);
+    setError(null);
+    setTab('ask');
+  }, [session]);
 
   const h = encodeURIComponent(hospitalId);
   /**
@@ -430,9 +471,23 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
     error: error?.tab === t ? error.text : null,
   });
 
+  if (!glance && !failed) {
+    return (
+      <div className={styles.insightsBody}>
+        <p className={styles.muted}>Loading…</p>
+      </div>
+    );
+  }
+  if (glance && glance.events === 0) {
+    return (
+      <div className={styles.insightsBody}>
+        <NothingYet onCheck={check} />
+      </div>
+    );
+  }
   return (
     <div className={styles.insightsBody}>
-      <Glance hospitalId={hospitalId} opens={opens} />
+      {glance && <GlanceCards metrics={glance} />}
       <Tabs tab={tab} onSelect={select} />
       <AskPanel hidden={tab !== 'ask'} {...panel('ask')} answer={answer} onAsk={ask} />
       <SummaryPanel
