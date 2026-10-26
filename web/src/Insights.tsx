@@ -126,14 +126,14 @@ function GlanceCards({ metrics }: { metrics: ShiftMetrics }) {
   );
 }
 
-/** Insights covers only this session, so a fresh floor has nothing to analyze yet. */
+/**
+ * The floor has activity (the button checks before opening) but Snowflake has none yet: events
+ * reach it in 5 s batches, so a quick open lands in that gap.
+ */
 function NothingYet({ onCheck }: { onCheck: () => void }) {
   return (
     <div className={styles.insightsEmpty}>
-      <p>
-        Move a few pumps or work an order on the floor, then check again to see this session’s
-        insights.
-      </p>
+      <p>Check again in a few seconds: your latest moves are still on their way to Snowflake.</p>
       <p className={styles.insightsFoot}>
         <button type="button" className={styles.button} onClick={onCheck}>
           Check again
@@ -513,13 +513,24 @@ function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number
   );
 }
 
+/** Shown under the button instead of opening, while this session has nothing to analyze. */
+const HINT = 'Move a few pumps on the floor first to give Insights something to analyze.';
+const HINT_MS = 5_000;
+
 /**
  * Progressive disclosure: a header button (only when the server has Snowflake on) opens the
  * panel as a modal <dialog>, which brings Esc-to-close, a focus trap, and a backdrop. The body
  * stays mounted while closed, so the last answer is still there when it reopens.
  */
-export function Insights({ hospitalId }: { hospitalId: string }) {
+export function Insights({ hospitalId, active }: { hospitalId: string; active: boolean }) {
   const enabled = useEnabled();
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (!hint) return;
+    if (active) return setHint(false);
+    const timer = setTimeout(() => setHint(false), HINT_MS);
+    return () => clearTimeout(timer);
+  }, [hint, active]);
   const dialog = useRef<HTMLDialogElement>(null);
   /** Counts opens, so the cards refresh each time without loading while the dialog is closed. */
   const [opens, setOpens] = useState(0);
@@ -527,6 +538,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
   const close = () => dialog.current?.close();
   /** showModal() would focus the first control (×); start on the question box instead. */
   const open = () => {
+    if (!active) return setHint(true);
     dialog.current?.showModal();
     dialog.current?.querySelector('input')?.focus();
     setOpens((n) => n + 1);
@@ -538,12 +550,18 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
 
   return (
     <>
-      <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
-        <span aria-hidden="true" className={styles.insightsGlyph}>
-          &#10022;
-        </span>{' '}
-        Insights
-      </button>
+      <span className={styles.insightsAnchor}>
+        <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
+          <span aria-hidden="true" className={styles.insightsGlyph}>
+            &#10022;
+          </span>{' '}
+          Insights
+        </button>
+        {/* Always rendered, so screen readers announce the hint when it appears. */}
+        <span role="status" className={styles.insightsHint}>
+          {hint ? HINT : ''}
+        </span>
+      </span>
       <dialog
         ref={dialog}
         className={styles.insightsDialog}

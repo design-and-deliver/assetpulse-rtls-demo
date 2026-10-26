@@ -688,7 +688,36 @@
   color: var(--text-muted);
 }
 
-/* Nothing recorded this session yet: the prompt, then Check again centered under it. */
+/* The no-activity hint: a callout under the Insights button, so the dialog never opens empty. */
+.insightsAnchor {
+  position: relative;
+}
+
+.insightsHint {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 8px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Empty between hints: no box, but still in the tree as a live region. */
+.insightsHint:empty {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Snowflake has not caught up yet: the prompt, then Check again centered under it. */
 .insightsEmpty > p:first-child {
   margin: 8px 0 0;
   line-height: 1.55;

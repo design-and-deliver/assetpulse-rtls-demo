@@ -90,6 +90,8 @@ export class WorldHub {
    * new one, and so does a world rebuilt after idle eviction.
    */
   session: string;
+  /** The log's seq when this session began: later events are the session's history. */
+  private sessionSeq = 0;
   /** Device key → "Tech N", numbered in first-seen order, so each device keeps one name. */
   private readonly techNames = new Map<string, string>();
 
@@ -107,6 +109,7 @@ export class WorldHub {
   private runs = 0;
   /** Start time keeps a rebuilt world's key new; the run count keeps two resets in 1 ms apart. */
   private newSession(): string {
+    this.sessionSeq = this.log.seq;
     return `${this.hospitalId}-${this.deps.now().toString(36)}${++this.runs}`;
   }
 
@@ -153,6 +156,7 @@ export class WorldHub {
       type: FrameType.hello,
       worldId: this.hospitalId,
       seq: this.log.seq,
+      sessionSeq: this.sessionSeq,
       snapshot: this.world.snapshot(),
     };
   }
@@ -163,6 +167,7 @@ export class WorldHub {
       ts: this.deps.now(),
       type: FrameType.resync,
       seq: this.log.seq,
+      sessionSeq: this.sessionSeq,
       snapshot: this.world.snapshot(),
     };
   }

@@ -29,6 +29,21 @@ async function mockGlance(page: Page, events: number): Promise<void> {
   );
 }
 
+/**
+ * A fresh floor with one pump moved: Insights only opens once the session has activity, and a
+ * floor of its own keeps that true whichever test runs first.
+ */
+async function startSession(page: Page): Promise<void> {
+  const h = `i${Math.random().toString(36).slice(2, 9).padEnd(7, '0')}`;
+  await page.goto(`/?h=${h}`);
+  await page.locator('button[data-pump="IVP-101"]').click();
+  await page
+    .locator('[data-zone="ICU-301"]')
+    .getByRole('button', { name: 'Move IVP-101 here' })
+    .click();
+  await expect(page.locator('[data-zone="ICU-301"] button[data-pump="IVP-101"]')).toBeVisible();
+}
+
 async function expectNoViolations(page: Page, include?: string): Promise<void> {
   const builder = new AxeBuilder({ page }).withTags(TAGS);
   const { violations } = await (include ? builder.include(include) : builder).analyze();
@@ -82,7 +97,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         route.fulfill({ json: { enabled: true } }),
       );
       await mockGlance(page, 18);
-      await page.goto(`/?h=${hospital}`);
+      await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
       // Type first: a disabled Ask is exempt from contrast, the enabled one is not.
@@ -91,12 +106,24 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectNoViolations(page, 'dialog');
     });
 
-    test('insights dialog before any activity', async ({ page }) => {
+    test('insights hint before any activity', async ({ page }) => {
+      await page.route('**/api/insights/status', (route) =>
+        route.fulfill({ json: { enabled: true } }),
+      );
+      await page.goto(`/?h=i${Date.now().toString(36).slice(-7)}`);
+      await page.getByRole('button', { name: /Insights/ }).click();
+      // Nothing to analyze yet: the hint shows on the main screen and the dialog stays shut.
+      await expect(page.getByRole('status').filter({ hasText: /Move a few pumps/ })).toBeVisible();
+      await expect(page.getByRole('dialog')).toBeHidden();
+      await expectNoViolations(page);
+    });
+
+    test('insights dialog while Snowflake catches up', async ({ page }) => {
       await page.route('**/api/insights/status', (route) =>
         route.fulfill({ json: { enabled: true } }),
       );
       await mockGlance(page, 0);
-      await page.goto(`/?h=${hospital}`);
+      await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       await expect(page.getByRole('button', { name: 'Check again' })).toBeVisible();
       await expect(page.getByRole('tab')).toHaveCount(0);
@@ -142,7 +169,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
           },
         }),
       );
-      await page.goto(`/?h=${hospital}`);
+      await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
       const chip = page.getByRole('button', { name: 'Median delivery' });
       await chip.focus();

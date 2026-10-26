@@ -9,7 +9,7 @@ import type { ConsoleStore } from './store';
 import { TechPager } from './TechPager';
 import { Toasts } from './Toasts';
 import { WireDrawer } from './WireDrawer';
-import { cleanCount } from './world';
+import { cleanCount, sessionHasActivity } from './world';
 
 /** Pumps a fresh shelf must lose to reach its minimum and page a tech. */
 const TO_BREACH = INITIAL_ASSETS.length - PAR.min;
@@ -39,7 +39,7 @@ export function App({
         </div>
         <div className={styles.headerTools}>
           <ConnectionPill connection={connection} />
-          <Insights hospitalId={hospitalId} />
+          <Insights hospitalId={hospitalId} active={sessionHasActivity(world)} />
           <button
             type="button"
             className={styles.button}
