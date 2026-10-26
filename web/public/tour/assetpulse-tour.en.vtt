@@ -1,133 +1,137 @@
 WEBVTT
 
 1
-00:00:00.563 --> 00:00:02.450
+00:00:00.554 --> 00:00:02.721
 This is AssetPulse:
 
 2
-00:00:02.545 --> 00:00:05.244
+00:00:02.726 --> 00:00:05.605
 a real-time demo for keeping IV pumps
 
 3
-00:00:05.244 --> 00:00:06.904
+00:00:05.605 --> 00:00:07.128
 where a hospital needs them.
 
 4
-00:00:08.153 --> 00:00:10.533
+00:00:08.344 --> 00:00:10.693
 All day, nurses move pumps from the
 
 5
-00:00:10.533 --> 00:00:13.579
+00:00:10.693 --> 00:00:13.546
 clean utility room into patient rooms,
 
 6
-00:00:13.579 --> 00:00:16.662
+00:00:13.546 --> 00:00:16.522
 and the clean shelf quietly runs low.
 
 7
-00:00:17.916 --> 00:00:21.108
-AssetPulse catches that the moment it happens,
+00:00:17.745 --> 00:00:19.336
+AssetPulse catches that,
 
 8
-00:00:21.108 --> 00:00:24.124
-and pages a technician automatically.
+00:00:19.336 --> 00:00:20.548
+the moment it happens,
 
 9
-00:00:25.364 --> 00:00:27.824
-A TypeScript server holds the floor's state
+00:00:20.548 --> 00:00:23.359
+and pages a technician automatically.
 
 10
-00:00:27.824 --> 00:00:31.280
-and streams every change over WebSockets.
+00:00:24.586 --> 00:00:26.897
+A TypeScript server holds the floor's state
 
 11
-00:00:31.282 --> 00:00:33.503
-The control panel is React.
+00:00:26.897 --> 00:00:30.230
+and streams every change over WebSockets.
 
 12
-00:00:33.503 --> 00:00:35.923
-Every event lands in Snowflake,
+00:00:30.230 --> 00:00:32.313
+The control panel is React.
 
 13
-00:00:35.923 --> 00:00:37.836
-and it all runs on Azure.
+00:00:32.313 --> 00:00:34.460
+Every event lands in Snowflake,
 
 14
-00:00:39.075 --> 00:00:40.711
-And that phone isn't a mock-up or
+00:00:34.460 --> 00:00:36.223
+and it all runs on Azure.
 
 15
-00:00:40.711 --> 00:00:43.410
-an emulator. It's the real tech app,
+00:00:37.462 --> 00:00:39.204
+And that phone isn't a mock-up or
 
 16
-00:00:43.410 --> 00:00:45.977
-built with Expo and React Native,
+00:00:39.204 --> 00:00:41.667
+an emulator. It's the real tech app,
 
 17
-00:00:45.977 --> 00:00:47.626
-compiled for the web,
+00:00:41.667 --> 00:00:44.091
+built with Expo and React Native,
 
 18
-00:00:47.626 --> 00:00:49.871
-and running live on its own connection.
+00:00:44.091 --> 00:00:45.581
+compiled for the web,
 
 19
-00:00:50.904 --> 00:00:51.901
-Here's the loop.
+00:00:45.581 --> 00:00:47.622
+and running live on its own connection.
 
 20
-00:00:51.901 --> 00:00:55.026
-Drag three pumps off the clean shelf
+00:00:48.648 --> 00:00:49.570
+Here's the loop.
 
 21
-00:00:55.026 --> 00:00:56.952
-and into patient rooms.
+00:00:49.570 --> 00:00:52.386
+Drag three pumps off the clean shelf
 
 22
-00:00:57.710 --> 00:00:59.506
-The shelf hits its minimum,
+00:00:52.386 --> 00:00:54.035
+and into patient rooms.
 
 23
-00:00:59.506 --> 00:01:01.101
-a work order opens,
+00:00:54.583 --> 00:00:56.426
+The shelf hits its minimum,
 
 24
-00:01:01.101 --> 00:01:03.745
-and Joe's phone buzzes with a notification.
+00:00:56.426 --> 00:00:57.916
+a work order opens,
 
 25
-00:01:04.242 --> 00:01:05.120
-He taps it,
+00:00:57.916 --> 00:01:00.488
+and Joe's phone buzzes with a notification.
 
 26
-00:01:05.120 --> 00:01:06.317
-accepts the order,
+00:01:00.967 --> 00:01:01.838
+He taps it,
 
 27
-00:01:06.317 --> 00:01:09.654
-restocks, and marks three pumps delivered.
+00:01:01.838 --> 00:01:03.038
+accepts the order,
 
 28
-00:01:09.654 --> 00:01:12.365
-The shelf refills instantly.
+00:01:03.038 --> 00:01:06.333
+restocks, and marks three pumps delivered.
 
 29
-00:01:16.282 --> 00:01:19.407
-Insights shows how quickly Joe responded.
+00:01:06.333 --> 00:01:08.879
+The shelf refills instantly.
 
 30
-00:01:19.407 --> 00:01:22.476
-And you can ask Snowflake Cortex in plain English.
+00:01:09.366 --> 00:01:12.270
+Insights shows how quickly Joe responded.
 
 31
-00:01:26.119 --> 00:01:28.816
-How many pumps were delivered? Three.
+00:01:12.270 --> 00:01:15.397
+And you can ask Snowflake Cortex in plain English.
 
 32
-00:01:30.401 --> 00:01:33.497
-It's live at assetpulse.proswitch.ai
+00:01:19.359 --> 00:01:21.930
+How many pumps were delivered? Three.
 
 33
-00:01:34.751 --> 00:01:36.092
+00:01:23.535 --> 00:01:26.598
+It's live at assetpulse.proswitch.ai
+
+34
+00:01:27.849 --> 00:01:29.107
 Try it yourself.
