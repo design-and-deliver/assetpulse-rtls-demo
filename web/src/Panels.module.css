@@ -175,105 +175,50 @@
   cursor: pointer;
 }
 
-/* --- Panel 3: tech pager --- */
+/* --- Panel 3: the tech's phone, the real /tech app in an iframe --- */
 
-.pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  transition:
-    border-color 200ms ease,
-    background 200ms ease;
-}
-
-.pagerNew {
-  border-color: var(--warn);
-  background: var(--warn-soft);
-}
-
-.pagerText {
+.phonePanel {
   display: grid;
-  gap: 2px;
-  min-width: 0;
+  justify-items: center;
+  gap: 4px;
 }
 
-.pagerTop {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.phonePanel > .heading,
+.phoneNote {
+  justify-self: stretch;
+  text-align: center;
 }
 
-.chip {
-  padding: 1px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px;
+.phoneNote {
+  margin: 0;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
-.chipNew {
-  border-color: var(--warn);
-  color: var(--warn);
-  font-weight: 600;
-}
-
-.pagerBody,
-.pagerNotice {
-  margin: 0;
-}
-
-.pagerBody code {
-  font-family: var(--mono);
-}
-
-.pagerNotice {
-  color: var(--warn);
-}
-
-.pagerPhone {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--text);
-  text-decoration: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 5px 12px;
-}
-
-.pagerPhone:hover {
-  background: var(--surface-2);
-}
-
-.pagerPhone:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.action {
-  font: inherit;
-  font-weight: 600;
-  color: var(--on-status); /* white in light mode, near-black on dark mode's lighter fills */
-  background: var(--focus);
+/*
+ * Wide: sized to the phone (390 screen + bezel + room to buzz), as tall as the window allows; the
+ * app draws its own bezel to fit. Narrow: too slim for a bezel, so the app runs plain in a card.
+ */
+.phoneFrame {
+  width: min(440px, 100%);
+  height: min(820px, calc(100vh - 170px));
+  min-height: 560px;
   border: 0;
-  border-radius: 8px;
-  padding: 8px 16px;
-  cursor: pointer;
+  background: transparent;
 }
 
-.actionRestock {
-  background: var(--ok);
+@media (max-width: 1099px) {
+  .phoneFrame {
+    height: 560px;
+    min-height: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
 }
 
-.action:disabled {
-  opacity: 0.55;
-  cursor: default;
+.phoneOpen {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* --- Connection pill --- */

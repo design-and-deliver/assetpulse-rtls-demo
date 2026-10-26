@@ -3,10 +3,9 @@ import { useSyncExternalStore } from 'react';
 import styles from './App.module.css';
 import { ConnectionPill } from './ConnectionPill';
 import { Insights } from './Insights';
-import type { Pager } from './pager';
+import { PhonePanel } from './PhonePanel';
 import { Stock } from './Stock';
 import type { ConsoleStore } from './store';
-import { TechPager } from './TechPager';
 import { Toasts } from './Toasts';
 import { WireDrawer } from './WireDrawer';
 import { cleanCount, sessionHasActivity } from './world';
@@ -14,16 +13,8 @@ import { cleanCount, sessionHasActivity } from './world';
 /** Pumps a fresh shelf must lose to reach its minimum and page a tech. */
 const TO_BREACH = INITIAL_ASSETS.length - PAR.min;
 
-/** One column, one story: shelf → rooms → pager → the wire underneath it all. History opens on demand. */
-export function App({
-  store,
-  pager,
-  hospitalId,
-}: {
-  store: ConsoleStore;
-  pager: Pager;
-  hospitalId: string;
-}) {
+/** The floor (shelf → rooms → the wire underneath) beside the tech's phone. History opens on demand. */
+export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: string }) {
   const { world, connection, toasts } = useSyncExternalStore(store.subscribe, store.getState);
   const live = connection.state === 'open';
 
@@ -51,14 +42,24 @@ export function App({
         </div>
       </header>
       <main className={styles.main}>
-        <Stock
-          assets={[...world.assets.values()]}
-          par={world.par}
-          clean={cleanCount(world)}
-          onMove={(assetId, toZoneId) => void store.moveAsset(assetId, toZoneId)}
-        />
-        <TechPager pager={pager} hospitalId={hospitalId} />
-        <WireDrawer stats={store.client.stats} connection={connection} onKill={store.killNetwork} />
+        <div className={styles.floor}>
+          <Stock
+            assets={[...world.assets.values()]}
+            par={world.par}
+            clean={cleanCount(world)}
+            onMove={(assetId, toZoneId) => void store.moveAsset(assetId, toZoneId)}
+          />
+          <div className={styles.wire}>
+            <WireDrawer
+              stats={store.client.stats}
+              connection={connection}
+              onKill={store.killNetwork}
+            />
+          </div>
+        </div>
+        <div className={styles.phone}>
+          <PhonePanel hospitalId={hospitalId} />
+        </div>
       </main>
       <Toasts toasts={toasts} onDismiss={store.dismissToast} />
     </div>

@@ -39,8 +39,7 @@ product.
 ```mermaid
 flowchart LR
   C["Ops console<br/>floor · role:ops"] <--> WS
-  P["Tech pager<br/>role:tech"] <--> WS
-  M["Handheld /tech<br/>role:tech"] <--> WS
+  M["Tech's phone /tech<br/>role:tech"] <--> WS
   WS["/ws on App Service<br/>one WorldHub per ?h="] -->|command| W["World<br/>state machine"]
   W -->|events| L["EventLog<br/>seq · ring of 1,000"]
   L -->|"never dropped"| WS
@@ -67,12 +66,13 @@ How this was built with Claude Code is described in [docs/ai-assisted-dev.md](do
 
 1. **Page a tech.** Drag pumps from the Clean Utility shelf into patient rooms. When the shelf
    reaches its reorder point of 2, the status shows **At min** and a work order (`WO0010001`) opens.
-2. **Work the order.** Accept it in the tech pager, then choose **Complete restock (+3)**. The
-   shelf refills and the PAR status clears.
-3. **Use a phone.** Choose **Also on your phone →** in the pager. It opens `/tech?h=<same id>`, the
-   Expo handheld built for web. Open it on your phone as well, and whichever device accepts first
-   wins. The other device's card disappears, because the loser's `accept_wo` is rejected with
-   `ALREADY_ASSIGNED`.
+2. **Work the order.** The tech's phone beside the floor is the real Expo handheld (`/tech`, built
+   for web) in an iframe, with its own socket. It sits on a lock screen; the page lands as a
+   notification. Open it, choose **Accept order**, then **Mark 3 pumps delivered**. The shelf
+   refills and the PAR status clears.
+3. **Use a second phone.** Choose **Open in its own tab** under the phone, or open
+   `/tech?h=<same id>` on your real phone. Whichever device accepts first wins. The other
+   device's card disappears, because the loser's `accept_wo` is rejected with `ALREADY_ASSIGNED`.
 4. **Kill the network.** Open the **Live WebSocket** drawer and choose **Drop connection 10 s**.
    While the console is offline, restock from the phone (it has its own socket). When the console
    reconnects, it sends `resume{lastSeq}`, the server replays only what it missed, and a toast

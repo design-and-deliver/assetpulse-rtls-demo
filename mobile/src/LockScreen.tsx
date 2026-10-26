@@ -40,7 +40,6 @@ function Notification({ order, onOpen }: { order: WorkOrder; onOpen: () => void 
     >
       <Pressable
         accessibilityRole="button"
-        aria-label={`New work order: ${order.short_description}. Open AssetPulse`}
         onPress={onOpen}
         style={styles.note}
       >

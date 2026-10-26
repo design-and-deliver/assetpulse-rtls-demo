@@ -58,3 +58,40 @@
   display: grid;
   gap: var(--gap);
 }
+
+/*
+ * Narrow: one column, the phone right under the rooms (the floor column dissolves into the main
+ * grid, and order puts the wire drawer last). Wide: the floor left, the phone beside it.
+ */
+.floor {
+  display: contents;
+}
+
+.phone {
+  order: 1;
+}
+
+.wire {
+  order: 2;
+}
+
+@media (min-width: 1100px) {
+  .shell {
+    max-width: 1240px;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: start;
+  }
+
+  .floor {
+    display: grid;
+    gap: var(--gap);
+  }
+
+  .phone {
+    position: sticky;
+    top: 16px;
+  }
+}
