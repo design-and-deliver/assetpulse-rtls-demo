@@ -180,12 +180,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
       );
       await startSession(page);
       await page.getByRole('button', { name: /Insights/ }).click();
-      const chip = page.getByRole('button', { name: 'Median delivery' });
-      await chip.focus();
+      await page.getByLabel(/Question about/).fill('Median minutes from page to delivery, by tech');
+      const ask = page.getByRole('button', { name: 'Ask', exact: true });
+      await ask.focus();
       await page.keyboard.press('Enter');
-      // While Cortex works, the pressed chip keeps keyboard focus (it must not go disabled).
-      await expect(chip).toHaveAttribute('aria-disabled', 'true');
-      await expect(chip).toBeFocused();
+      // While Cortex works, the pressed button keeps keyboard focus (it must not go disabled).
+      const asking = page.getByRole('button', { name: 'Asking…' });
+      await expect(asking).toHaveAttribute('aria-disabled', 'true');
+      await expect(asking).toBeFocused();
       releaseAsk();
       await expect(page.getByRole('region', { name: 'Query results' })).toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Median minutes' })).toBeVisible();

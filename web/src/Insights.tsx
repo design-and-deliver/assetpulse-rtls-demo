@@ -146,16 +146,6 @@ function NothingYet({ onCheck }: { onCheck: () => void }) {
   );
 }
 
-/** Short chip labels; the full question goes into the box, so the visitor sees what was asked. */
-const EXAMPLES = [
-  {
-    label: 'Time to accept',
-    question: 'How long did each work order wait before a tech accepted it?',
-  },
-  { label: 'Median delivery', question: 'Median minutes from page to delivery, by tech' },
-  { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
-];
-
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const TIMESTAMP_FORMAT: Intl.DateTimeFormatOptions = {
   month: 'short',
@@ -359,7 +349,7 @@ function AskPanel({
           className={styles.insightsInput}
           value={question}
           maxLength={300}
-          placeholder="Ask about this floor’s history"
+          placeholder="e.g. How many pumps were delivered?"
           onChange={(e) => setQuestion(e.target.value)}
         />
         <button
@@ -371,23 +361,6 @@ function AskPanel({
           {busy ? 'Asking…' : 'Ask'}
         </button>
       </form>
-      <div className={styles.insightsChips}>
-        {EXAMPLES.map(({ label, question: q }) => (
-          <button
-            key={label}
-            type="button"
-            className={styles.insightsChip}
-            aria-disabled={busy || undefined}
-            onClick={() => {
-              if (busy) return;
-              setQuestion(q);
-              onAsk(q);
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       <div aria-live="polite">
         {busy && <p className={styles.srOnly}>Asking Snowflake…</p>}
         {error && <p className={styles.insightsError}>{error}</p>}

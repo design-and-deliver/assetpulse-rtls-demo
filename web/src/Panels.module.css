@@ -470,28 +470,9 @@
   opacity: 1;
 }
 
-.insightsInput:focus-visible,
-.insightsChip:focus-visible {
+.insightsInput:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
-}
-
-.insightsChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 4px;
-}
-
-.insightsChip {
-  font: inherit;
-  font-size: 13px;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--control-border);
-  border-radius: 999px;
-  padding: 3px 10px;
-  cursor: pointer;
 }
 
 .insightsAnswer {
@@ -639,8 +620,7 @@
 
 /* Disabled stays legible (text 4.5:1 on the surface), just quieter than enabled. */
 .insightsDialog .button:disabled,
-.insightsDialog .button[aria-disabled='true'],
-.insightsChip[aria-disabled='true'] {
+.insightsDialog .button[aria-disabled='true'] {
   opacity: 1;
   color: var(--text-muted);
   background: var(--bg);
@@ -648,7 +628,6 @@
   cursor: default;
 }
 
-.insightsChip:hover:not([aria-disabled='true']),
 .insightsDialog .button:hover:not(:disabled, [aria-disabled='true']) {
   border-color: var(--text);
 }
