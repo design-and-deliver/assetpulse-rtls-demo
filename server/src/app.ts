@@ -68,8 +68,23 @@ function techNameHandler(registry: WorldRegistry) {
 const DEFAULT_WEB_DIR = fileURLToPath(new URL('../../web/dist', import.meta.url));
 const DEFAULT_TECH_DIR = fileURLToPath(new URL('../../mobile/dist', import.meta.url));
 
+/** Build output named by content hash (Vite's `/assets`, Expo's `/_expo/static`): never changes. */
+const HASHED_PATH = /^\/(assets|_expo\/static)\//;
+
+/**
+ * Hashed files cache forever. Everything else (pages, the tour video, captions) is `no-cache`:
+ * the browser revalidates on every load, gets a cheap 304 while the file is unchanged, and the
+ * new file the moment a deploy replaces it.
+ */
+function cacheHeaders(res: http.ServerResponse, pathname: string): void {
+  res.setHeader(
+    'cache-control',
+    HASHED_PATH.test(pathname) ? 'public, max-age=31536000, immutable' : 'no-cache',
+  );
+}
+
 function spa(dir: string): RequestHandler | null {
-  return existsSync(dir) ? sirv(dir, { single: true }) : null;
+  return existsSync(dir) ? sirv(dir, { single: true, etag: true, setHeaders: cacheHeaders }) : null;
 }
 
 function notFound(res: http.ServerResponse): void {
