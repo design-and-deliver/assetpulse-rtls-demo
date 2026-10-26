@@ -5,10 +5,7 @@
   padding: 14px 16px;
 }
 
-/*
- * Heading centred over the panel; on its right, the shelf's rule centred in the gap and the status
- * badge at the edge. The empty left column balances the right, so the heading stays centred.
- */
+/* Heading centred over the panel, the shelf's rule top right; the empty left column balances it. */
 .panelTop {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -22,22 +19,22 @@
   text-align: center;
 }
 
-.panelSide {
-  grid-column: 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .panelRule {
-  flex: 1;
+  grid-column: 3;
+  justify-self: end;
   margin: 0;
   font-size: 13px;
   color: var(--text-muted);
-  text-align: center;
 }
 
-/* Too narrow to share a row: heading, rule, then badge, each centred on its own line. */
+/* The shelf's live status, under the shelf at the right. */
+.panelStatus {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* Too narrow to share a row: heading, then rule, centred on their own lines. */
 @media (max-width: 599px) {
   .panelTop {
     grid-template-columns: 1fr;
@@ -45,13 +42,9 @@
   }
 
   .panelTop > .heading,
-  .panelSide {
+  .panelRule {
     grid-column: 1;
-  }
-
-  .panelSide {
-    flex-direction: column;
-    gap: 4px;
+    justify-self: center;
   }
 }
 
