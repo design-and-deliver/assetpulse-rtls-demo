@@ -33,9 +33,7 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
                 a tech.
               </p>
               <p className={styles.tourLink}>
-                <a href="/tour">
-                  Watch the 2-minute tour <span aria-hidden="true">→</span>
-                </a>
+                <a href="/tour">Watch the 2-minute tour</a>
               </p>
             </div>
             <div className={styles.headerTools}>
