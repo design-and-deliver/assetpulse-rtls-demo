@@ -59,7 +59,7 @@ function TechApp({ session }: { session: TechSession }) {
       <View style={styles.appBar}>
         <View style={styles.brand}>
           <View style={styles.logo} aria-hidden>
-            <Text style={styles.logoText}>A</Text>
+            <Text style={styles.logoText}>AP</Text>
           </View>
           <Text style={styles.brandText} role="heading" aria-level={1}>
             AssetPulse
@@ -155,7 +155,7 @@ function makeStyles(c: Palette) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    logoText: { color: c.onStatus, fontSize: 16, fontWeight: '800' },
+    logoText: { color: c.onStatus, fontSize: 12, fontWeight: '800', letterSpacing: -0.3 },
     brandText: { color: c.text, fontSize: 18, fontWeight: '700' },
     pill: {
       flexDirection: 'row',

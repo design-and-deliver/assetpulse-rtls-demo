@@ -103,7 +103,7 @@ function Notification({ order, onOpen }: { order: WorkOrder; onOpen: () => void 
       >
         <View style={styles.noteHead}>
           <View style={styles.noteIcon}>
-            <Text style={styles.noteIconText}>A</Text>
+            <Text style={styles.noteIconText}>AP</Text>
           </View>
           <Text style={styles.noteApp}>ASSETPULSE</Text>
           <Text style={styles.noteWhen}>now</Text>
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  noteIconText: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
+  noteIconText: { color: '#ffffff', fontSize: 8.5, fontWeight: '800', letterSpacing: -0.2 },
   noteApp: { flex: 1, color: '#4a5560', fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
   noteWhen: { color: '#4a5560', fontSize: 12 },
   noteTitle: { color: '#1c2630', fontSize: 15, fontWeight: '700' },

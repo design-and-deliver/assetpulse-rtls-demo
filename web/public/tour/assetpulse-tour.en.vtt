@@ -1,133 +1,133 @@
 WEBVTT
 
 1
-00:00:00.562 --> 00:00:02.449
+00:00:00.563 --> 00:00:02.450
 This is AssetPulse:
 
 2
-00:00:02.544 --> 00:00:05.243
+00:00:02.545 --> 00:00:05.244
 a real-time demo for keeping IV pumps
 
 3
-00:00:05.243 --> 00:00:06.903
+00:00:05.244 --> 00:00:06.904
 where a hospital needs them.
 
 4
-00:00:08.135 --> 00:00:10.515
+00:00:08.153 --> 00:00:10.533
 All day, nurses move pumps from the
 
 5
-00:00:10.515 --> 00:00:13.561
+00:00:10.533 --> 00:00:13.579
 clean utility room into patient rooms,
 
 6
-00:00:13.561 --> 00:00:16.644
+00:00:13.579 --> 00:00:16.662
 and the clean shelf quietly runs low.
 
 7
-00:00:17.899 --> 00:00:21.091
+00:00:17.916 --> 00:00:21.108
 AssetPulse catches that the moment it happens,
 
 8
-00:00:21.091 --> 00:00:24.107
+00:00:21.108 --> 00:00:24.124
 and pages a technician automatically.
 
 9
-00:00:25.346 --> 00:00:27.807
+00:00:25.364 --> 00:00:27.824
 A TypeScript server holds the floor's state
 
 10
-00:00:27.807 --> 00:00:31.262
+00:00:27.824 --> 00:00:31.280
 and streams every change over WebSockets.
 
 11
-00:00:31.264 --> 00:00:33.485
+00:00:31.282 --> 00:00:33.503
 The control panel is React.
 
 12
-00:00:33.485 --> 00:00:35.905
+00:00:33.503 --> 00:00:35.923
 Every event lands in Snowflake,
 
 13
-00:00:35.905 --> 00:00:37.818
+00:00:35.923 --> 00:00:37.836
 and it all runs on Azure.
 
 14
-00:00:39.067 --> 00:00:40.703
+00:00:39.075 --> 00:00:40.711
 And that phone isn't a mock-up or
 
 15
-00:00:40.703 --> 00:00:43.402
+00:00:40.711 --> 00:00:43.410
 an emulator. It's the real tech app,
 
 16
-00:00:43.402 --> 00:00:45.969
+00:00:43.410 --> 00:00:45.977
 built with Expo and React Native,
 
 17
-00:00:45.969 --> 00:00:47.618
+00:00:45.977 --> 00:00:47.626
 compiled for the web,
 
 18
-00:00:47.618 --> 00:00:49.863
+00:00:47.626 --> 00:00:49.871
 and running live on its own connection.
 
 19
-00:00:50.880 --> 00:00:51.877
+00:00:50.904 --> 00:00:51.901
 Here's the loop.
 
 20
-00:00:51.877 --> 00:00:55.002
+00:00:51.901 --> 00:00:55.026
 Drag three pumps off the clean shelf
 
 21
-00:00:55.002 --> 00:00:56.928
+00:00:55.026 --> 00:00:56.952
 and into patient rooms.
 
 22
-00:01:00.776 --> 00:01:02.571
+00:00:57.710 --> 00:00:59.506
 The shelf hits its minimum,
 
 23
-00:01:02.571 --> 00:01:04.167
+00:00:59.506 --> 00:01:01.101
 a work order opens,
 
 24
-00:01:04.167 --> 00:01:06.811
+00:01:01.101 --> 00:01:03.745
 and Joe's phone buzzes with a notification.
 
 25
-00:01:07.310 --> 00:01:08.188
+00:01:04.242 --> 00:01:05.120
 He taps it,
 
 26
-00:01:08.188 --> 00:01:09.385
+00:01:05.120 --> 00:01:06.317
 accepts the order,
 
 27
-00:01:09.385 --> 00:01:12.723
+00:01:06.317 --> 00:01:09.654
 restocks, and marks three pumps delivered.
 
 28
-00:01:12.723 --> 00:01:15.433
+00:01:09.654 --> 00:01:12.365
 The shelf refills instantly.
 
 29
-00:01:20.949 --> 00:01:24.074
+00:01:16.282 --> 00:01:19.407
 Insights shows how quickly Joe responded.
 
 30
-00:01:24.074 --> 00:01:27.144
+00:01:19.407 --> 00:01:22.476
 And you can ask Snowflake Cortex in plain English.
 
 31
-00:01:30.060 --> 00:01:32.757
+00:01:26.119 --> 00:01:28.816
 How many pumps were delivered? Three.
 
 32
-00:01:34.370 --> 00:01:37.466
+00:01:30.401 --> 00:01:33.497
 It's live at assetpulse.proswitch.ai
 
 33
-00:01:38.738 --> 00:01:40.079
+00:01:34.751 --> 00:01:36.092
 Try it yourself.

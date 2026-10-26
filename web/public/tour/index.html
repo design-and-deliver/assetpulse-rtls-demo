@@ -3,27 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light" />
     <title>AssetPulse · Tour</title>
     <meta name="description" content="A narrated tour of AssetPulse: real-time IV pump tracking, a live tech app, and Snowflake Cortex." />
     <style>
       :root {
-        --bg1: #0b1622;
-        --bg2: #14263a;
         --blue: #3a6ea5;
-        --blue-hi: #6a9fd6;
-        --ink: #ffffff;
-        --muted: #a9b8c6;
+        --blue-hover: #2f5d8c;
+        --ink: #1c2630;
+        --muted: #5b6874;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; min-height: 100%; }
       body {
         color: var(--ink);
         font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        background:
-          radial-gradient(1100px 650px at 15% 0%, #1d3a5c 0%, transparent 60%),
-          linear-gradient(160deg, var(--bg1), var(--bg2));
-        background-color: var(--bg1);
+        background: #ffffff;
         display: grid;
         place-items: center;
         padding: 32px 16px 48px;
@@ -33,7 +28,7 @@
       .brand { display: inline-flex; align-items: center; gap: 12px; }
       .mark {
         width: 40px; height: 40px; border-radius: 11px; background: var(--blue);
-        display: grid; place-items: center; font-size: 24px; font-weight: 800;
+        display: grid; place-items: center; font-size: 17px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px;
       }
       h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.5px; }
       .lede { margin: 8px 0 0; color: var(--muted); font-size: 17px; }
@@ -42,33 +37,33 @@
         aspect-ratio: 16 / 9;
         border-radius: 14px;
         background: #000;
-        box-shadow: 0 24px 60px rgb(0 0 0 / 40%);
+        box-shadow: 0 18px 48px rgb(28 38 48 / 18%);
       }
       .cta {
         display: inline-flex; align-items: center; gap: 8px;
         padding: 12px 22px; border-radius: 10px;
-        background: var(--blue); color: var(--ink); text-decoration: none;
+        background: var(--blue); color: #ffffff; text-decoration: none;
         font-weight: 650; font-size: 17px;
       }
-      .cta:hover { background: #4a7fb6; }
-      .cta:focus-visible { outline: 3px solid var(--blue-hi); outline-offset: 3px; }
+      .cta:hover { background: var(--blue-hover); }
+      .cta:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
     </style>
   </head>
   <body>
     <main>
       <header>
         <div class="brand">
-          <span class="mark" aria-hidden="true">A</span>
+          <span class="mark" aria-hidden="true">AP</span>
           <h1>AssetPulse tour</h1>
         </div>
-        <p class="lede">What it does, what it's built with, and a quick walkthrough. Under two minutes.</p>
+        <p class="lede">A 2-minute walkthrough</p>
       </header>
       <!-- Subtitles are burned in; the track is for screen readers and players that read captions. -->
       <video controls preload="metadata" poster="/tour/poster.jpg">
         <source src="/tour/assetpulse-tour.mp4" type="video/mp4" />
         <track kind="captions" src="/tour/assetpulse-tour.en.vtt" srclang="en" label="English" />
       </video>
-      <a class="cta" href="/">Try it live <span aria-hidden="true">→</span></a>
+      <a class="cta" href="/">Try it live</a>
     </main>
   </body>
 </html>
