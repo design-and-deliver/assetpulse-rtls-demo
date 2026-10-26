@@ -28,6 +28,10 @@ const EMBED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('embed');
 
+// Chrome paints an iframe opaque (white) when its page's color-scheme differs from the parent's.
+// The console declares "light dark", so match it and the phone floats on the console's backdrop.
+if (EMBED) document.documentElement.style.colorScheme = 'light dark';
+
 /** The lock screen's wallpaper; the status strip above it takes the same colour. */
 export const WALLPAPER = '#14263a';
 
