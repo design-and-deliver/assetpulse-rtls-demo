@@ -86,6 +86,15 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectNoViolations(page);
     });
 
+    test('tour page, reached from the console header', async ({ page }) => {
+      await page.goto(`/?h=${hospital}`);
+      await page.getByRole('link', { name: /Watch the 2-minute tour/ }).click();
+      await expect(page).toHaveURL(/\/tour$/);
+      await expect(page.getByRole('heading', { name: 'AssetPulse tour' })).toBeVisible();
+      await expect(page.locator('video track[kind="captions"]')).toHaveCount(1);
+      await expectNoViolations(page);
+    });
+
     test('tech handheld', async ({ page }) => {
       await page.goto(`/tech?h=${hospital}`);
       // Desktop width shows the phone frame, which starts on its lock screen: scan both screens.
