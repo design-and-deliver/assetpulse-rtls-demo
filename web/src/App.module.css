@@ -4,13 +4,14 @@
   padding: 16px;
 }
 
+/* Centered: the control panel's title block, then its tools under it. */
 .header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
   margin-bottom: var(--gap);
+  text-align: center;
 }
 
 .title {
