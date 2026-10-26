@@ -73,7 +73,7 @@
 
 /*
  * The control panel's group box: tinted, so its white panels read as one app, and framed like a
- * desktop window (firm edge, brand accent on top, the phone's shadow) so it holds its own beside
+ * desktop window (firm edge, the phone's shadow) so it holds its own beside
  * the phone's dark bezel.
  */
 .console {
@@ -81,7 +81,6 @@
   padding: 16px;
   background: var(--surface-2);
   border: 1px solid var(--control-border);
-  border-top: 5px solid var(--focus);
   border-radius: 16px;
   box-shadow: 0 18px 50px rgb(0 0 0 / 14%);
 }
