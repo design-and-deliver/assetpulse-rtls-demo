@@ -58,13 +58,16 @@ SELECT
   (SELECT MEDIAN(MINUTES_TO_DELIVER) FROM WORK_ORDERS WHERE HOSPITAL_ID = ?) AS MEDIAN_MINUTES_TO_DELIVER,
   (SELECT COUNT(*) FROM PAR_ALERTS WHERE HOSPITAL_ID = ? AND STATE = 'BREACH') AS PAR_BREACHES,
   (SELECT COUNT(*) FROM ASSET_MOVES WHERE HOSPITAL_ID = ?) AS PUMP_MOVES,
-  (SELECT COUNT(*) FROM EVENTS WHERE HOSPITAL_ID = ?) AS EVENTS`;
+  (SELECT COUNT(*) FROM EVENTS WHERE HOSPITAL_ID = ?) AS EVENTS,
+  (SELECT MEDIAN(MINUTES_TO_ACCEPT) FROM WORK_ORDERS WHERE HOSPITAL_ID = ?) AS MEDIAN_MINUTES_TO_ACCEPT`;
 
 export interface ShiftMetrics {
   ordersOpened: number;
   ordersDelivered: number;
   /** null until an order has been delivered in the window. */
   medianMinutesToDeliver: number | null;
+  /** Page to a tech's accept: how long the floor waited for someone to pick it up. */
+  medianMinutesToAccept: number | null;
   parBreaches: number;
   pumpMoves: number;
   /** Every recorded event; 0 means nothing has happened on this floor yet. */
@@ -79,11 +82,12 @@ export interface ShiftSummary {
 }
 
 function toMetrics(row: (string | null)[] | undefined): ShiftMetrics {
-  const [opened, delivered, median, breaches, moves, events] = row ?? [];
+  const [opened, delivered, median, breaches, moves, events, accept] = row ?? [];
   return {
     ordersOpened: Number(opened ?? 0),
     ordersDelivered: Number(delivered ?? 0),
     medianMinutesToDeliver: median == null ? null : Number(median),
+    medianMinutesToAccept: accept == null ? null : Number(accept),
     parBreaches: Number(breaches ?? 0),
     pumpMoves: Number(moves ?? 0),
     events: Number(events ?? 0),
@@ -187,7 +191,7 @@ export async function ask(sf: Snowflake, hospitalId: string, question: string): 
 }
 
 export async function measure(sf: Snowflake, hospitalId: string): Promise<ShiftMetrics> {
-  const { rows } = await sf.query(METRICS_SQL, Array<string>(6).fill(hospitalId));
+  const { rows } = await sf.query(METRICS_SQL, Array<string>(7).fill(hospitalId));
   return toMetrics(rows[0]);
 }
 

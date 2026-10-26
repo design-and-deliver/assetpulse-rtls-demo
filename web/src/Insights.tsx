@@ -25,6 +25,7 @@ interface ShiftMetrics {
   ordersOpened: number;
   ordersDelivered: number;
   medianMinutesToDeliver: number | null;
+  medianMinutesToAccept: number | null;
   parBreaches: number;
   pumpMoves: number;
   events: number;
@@ -54,9 +55,10 @@ function Summary({ data }: { data: ShiftSummary }) {
     return <p className={styles.insightsAnswer}>{NO_ACTIVITY}</p>;
   }
   const m = data.metrics;
-  // The other three measured numbers are the Glance cards above the tabs; never show one twice.
+  // The headline numbers are the Glance cards above the tabs; never show one twice.
   const stats: [string, string][] = [
     ['Orders opened', String(m.ordersOpened)],
+    ['Shelf hit minimum', String(m.parBreaches)],
     ['Pump moves', String(m.pumpMoves)],
   ];
   return (
@@ -104,10 +106,11 @@ function useGlance(hospitalId: string, opens: number) {
 
 /** The three numbers a charge nurse or supply tech checks first, above both tabs. */
 function GlanceCards({ metrics }: { metrics: ShiftMetrics }) {
+  // Response time first: how long the floor waited for a tech to pick up the page.
   const cards: [string, string][] = [
-    ['Orders delivered', String(metrics.ordersDelivered)],
+    ['Median time to accept', duration(metrics.medianMinutesToAccept)],
     ['Median delivery', duration(metrics.medianMinutesToDeliver)],
-    ['Shelf hit minimum', String(metrics.parBreaches)],
+    ['Orders delivered', String(metrics.ordersDelivered)],
   ];
   return (
     <section className={styles.glance} aria-labelledby="glance-h">
@@ -145,7 +148,10 @@ function NothingYet({ onCheck }: { onCheck: () => void }) {
 
 /** Short chip labels; the full question goes into the box, so the visitor sees what was asked. */
 const EXAMPLES = [
-  { label: 'Orders opened', question: 'How many work orders were opened?' },
+  {
+    label: 'Time to accept',
+    question: 'How long did each work order wait before a tech accepted it?',
+  },
   { label: 'Median delivery', question: 'Median minutes from page to delivery, by tech' },
   { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
 ];

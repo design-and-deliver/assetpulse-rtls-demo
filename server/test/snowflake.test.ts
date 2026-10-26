@@ -272,7 +272,7 @@ describe('insights', () => {
       query: vi.fn(async (sql: string) =>
         sql.includes('AI_SUMMARIZE_AGG')
           ? { columns: [], rows: [['12', 'Quiet shift.']] }
-          : { columns: [], rows: [['2', '1', '0.75', '2', '6', '12']] },
+          : { columns: [], rows: [['2', '1', '0.75', '2', '6', '12', '0.25']] },
       ),
     };
     expect(await summarize(sf, H)).toEqual({
@@ -282,6 +282,7 @@ describe('insights', () => {
         ordersOpened: 2,
         ordersDelivered: 1,
         medianMinutesToDeliver: 0.75,
+        medianMinutesToAccept: 0.25,
         parBreaches: 2,
         pumpMoves: 6,
         events: 12,
@@ -293,12 +294,14 @@ describe('insights', () => {
     }
   });
 
-  it('reports no median until an order has been delivered', async () => {
+  it('reports no medians until an order has been accepted or delivered', async () => {
     const sf = {
       askAnalyst: vi.fn(),
       query: vi.fn(async () => ({ columns: [], rows: [['0', '0', null, '0', '0']] })),
     };
-    expect((await summarize(sf, H)).metrics.medianMinutesToDeliver).toBeNull();
+    const { metrics } = await summarize(sf, H);
+    expect(metrics.medianMinutesToDeliver).toBeNull();
+    expect(metrics.medianMinutesToAccept).toBeNull();
   });
 });
 
@@ -406,7 +409,7 @@ describe('insights guardrails', () => {
     const sessions = new Map([[H, `${H}-run1`]]);
     const base = await serve(sf, { sessionOf: (h) => sessions.get(h) ?? null });
     await fetch(`${base}/glance?h=${H}`);
-    expect(sf.query.mock.calls[0]![1]).toEqual(Array(6).fill(`${H}-run1`));
+    expect(sf.query.mock.calls[0]![1]).toEqual(Array(7).fill(`${H}-run1`));
     await fetch(`${base}/ask?h=${H}`, {
       method: 'POST',
       body: JSON.stringify({ question: 'Orders by tech?' }),
