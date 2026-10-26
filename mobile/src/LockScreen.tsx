@@ -63,7 +63,16 @@ function Notification({ order, onOpen }: { order: WorkOrder; onOpen: () => void 
  * What a paged tech's phone looks like in their pocket: locked, then a notification drops in.
  * Shown only inside the desktop phone frame, to stand in for a real push notification.
  */
-export function LockScreen({ orders, onOpen }: { orders: WorkOrder[]; onOpen: () => void }) {
+export function LockScreen({
+  owner,
+  orders,
+  onOpen,
+}: {
+  /** "Tech 2": named under the clock, so a visitor knows whose phone this is. */
+  owner: string;
+  orders: WorkOrder[];
+  onOpen: () => void;
+}) {
   const now = useNow();
   const paged = orders.filter((o) => o.state === 'open');
   return (
@@ -73,6 +82,7 @@ export function LockScreen({ orders, onOpen }: { orders: WorkOrder[]; onOpen: ()
           {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
         </Text>
         <Text style={styles.clock}>{clock(now)}</Text>
+        <Text style={styles.owner}>{owner}’s phone</Text>
       </View>
       <View style={styles.notes} aria-live="polite">
         {paged.map((o) => (
@@ -99,6 +109,16 @@ const styles = StyleSheet.create({
   time: { alignItems: 'center', gap: 2, marginBottom: 28 },
   date: { color: '#dbe6f0', fontSize: 16, fontWeight: '600' },
   clock: { color: '#ffffff', fontSize: 76, fontWeight: '700', letterSpacing: -2 },
+  owner: {
+    color: '#dbe6f0',
+    fontSize: 13,
+    fontWeight: '600',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+  },
   notes: { flex: 1, gap: 10 },
   note: {
     backgroundColor: 'rgba(255, 255, 255, 0.92)',

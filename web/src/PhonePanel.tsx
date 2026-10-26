@@ -8,10 +8,13 @@ export function PhonePanel({ hospitalId }: { hospitalId: string }) {
   const src = `/tech?h=${encodeURIComponent(hospitalId)}`;
   return (
     <section className={styles.phonePanel} aria-labelledby="phone-heading">
-      <h2 id="phone-heading" className={styles.heading}>
-        Tech’s phone
-      </h2>
-      <p className={styles.phoneNote}>What the tech sees when the shelf runs low.</p>
+      {/* Wide, the phone's lock screen names its owner, so this caption is for screen readers. */}
+      <div className={styles.phoneCaption}>
+        <h2 id="phone-heading" className={styles.heading}>
+          Tech’s phone
+        </h2>
+        <p className={styles.phoneNote}>What the tech sees when the shelf runs low.</p>
+      </div>
       <iframe className={styles.phoneFrame} src={`${src}&embed=1`} title="Tech’s phone app" />
       <a className={styles.phoneOpen} href={src} target="_blank" rel="noreferrer">
         Open in its own tab

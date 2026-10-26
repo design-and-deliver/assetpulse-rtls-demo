@@ -28,7 +28,7 @@ export default function App() {
     <PhoneFrame
       palette={palette}
       paged={paged}
-      lockScreen={(unlock) => <LockScreen orders={session.orders} onOpen={unlock} />}
+      lockScreen={(unlock) => <LockScreen owner={session.techId} orders={session.orders} onOpen={unlock} />}
     >
       <TechApp session={session} />
     </PhoneFrame>

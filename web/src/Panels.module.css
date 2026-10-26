@@ -183,10 +183,20 @@
   gap: 4px;
 }
 
-.phonePanel > .heading,
-.phoneNote {
+.phoneCaption {
   justify-self: stretch;
   text-align: center;
+}
+
+@media (min-width: 1100px) {
+  .phoneCaption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .phoneNote {
