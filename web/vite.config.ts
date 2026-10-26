@@ -8,6 +8,8 @@ export default defineConfig({
     proxy: {
       '/ws': { target: 'ws://localhost:8787', ws: true },
       '/api': { target: 'http://localhost:8787' },
+      // The tech handheld (mobile/dist) is served by the server, so "Also on your phone" works here too.
+      '^/tech(/|\\?|$)': { target: 'http://localhost:8787' },
     },
   },
 });
