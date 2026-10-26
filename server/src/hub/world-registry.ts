@@ -84,7 +84,15 @@ export class WorldHub {
   private flushTimer: NodeJS.Timeout | null = null;
   /** When the last socket left; null while any socket is attached. */
   idleSince: number | null;
-  /** Device key → "Tech N", numbered in first-seen order, so each device keeps one name. */
+  /**
+   * This floor's history key: the hospital id plus when this run began. Recorded history is
+   * keyed by it, so Insights only ever sees the run the visitor is looking at. A reset starts a
+   * new one, and so does a world rebuilt after idle eviction.
+   */
+  session: string;
+  /** The log's seq when this session began: later events are the session's history. */
+  private sessionSeq = 0;
+  /** Device key → its tech name, in first-seen order, so each device keeps one name. */
   private readonly techNames = new Map<string, string>();
 
   constructor(
@@ -95,13 +103,26 @@ export class WorldHub {
     this.log = new EventLog({ capacity: deps.eventLogSize, now: deps.now });
     this.simulator = new Simulator(this.world, { seed: deps.seed });
     this.idleSince = deps.now();
+    this.session = this.newSession();
   }
 
-  /** The demo has no login: a device's stored key earns the next "Tech N", then keeps it. */
+  private runs = 0;
+  /** Start time keeps a rebuilt world's key new; the run count keeps two resets in 1 ms apart. */
+  private newSession(): string {
+    this.sessionSeq = this.log.seq;
+    return `${this.hospitalId}-${this.deps.now().toString(36)}${++this.runs}`;
+  }
+
+  /**
+   * The demo has no login: a device's stored key earns a name, then keeps it. The demo has one
+   * tech, so the first device (the console's embedded phone) is "Joe Tech"; any extra device is
+   * "Tech 2", "Tech 3"…, so two devices never share a name and race on one order.
+   */
   techName(deviceKey: string): string {
     let name = this.techNames.get(deviceKey);
     if (!name) {
-      name = `Tech ${this.techNames.size + 1}`;
+      const n = this.techNames.size + 1;
+      name = n === 1 ? 'Joe Tech' : `Tech ${n}`;
       this.techNames.set(deviceKey, name);
     }
     return name;
@@ -140,6 +161,7 @@ export class WorldHub {
       type: FrameType.hello,
       worldId: this.hospitalId,
       seq: this.log.seq,
+      sessionSeq: this.sessionSeq,
       snapshot: this.world.snapshot(),
     };
   }
@@ -150,6 +172,7 @@ export class WorldHub {
       ts: this.deps.now(),
       type: FrameType.resync,
       seq: this.log.seq,
+      sessionSeq: this.sessionSeq,
       snapshot: this.world.snapshot(),
     };
   }
@@ -215,7 +238,10 @@ export class WorldHub {
     };
     try {
       this.publish(apply(this.world, command));
-      if (command.name === 'reset') this.resyncAll();
+      if (command.name === 'reset') {
+        this.session = this.newSession();
+        this.resyncAll();
+      }
       return ack;
     } catch (err) {
       if (!(err instanceof WorldError)) throw err;
@@ -226,7 +252,7 @@ export class WorldHub {
   private publish(events: WorldEvent[]): void {
     for (const event of events) {
       const stamped = this.log.append(event);
-      this.deps.sink.record(this.hospitalId, stamped);
+      this.deps.sink.record(this.session, stamped);
       if (stamped.type === FrameType.workOrder) {
         this.deps.serviceNow.submit(this.hospitalId, stamped.order);
       }

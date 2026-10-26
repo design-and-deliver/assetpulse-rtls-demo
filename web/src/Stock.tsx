@@ -207,14 +207,20 @@ export function Stock({
       <section className={styles.panel} aria-labelledby="shelf-heading">
         <div className={styles.panelTop}>
           <h2 id="shelf-heading" className={styles.heading}>
-            Clean Utility{' '}
-            <span className={styles.headingNote}>
-              PAR {PAR.max} · reorder at {PAR.min}
-            </span>
+            Clean Utility
           </h2>
-          {par && <BufferBadge clean={clean} par={par} />}
+          {/* The shelf's rule, top right: what full is, and where an order fires. */}
+          <p className={styles.panelRule}>
+            PAR {PAR.max} · Reorder at {PAR.min}
+          </p>
         </div>
         <DropZone zoneId={PAR.zoneId} className={styles.shelf} assets={assets} dm={dm} />
+        {/* The shelf's live status, bottom right: read after the pumps it counts. */}
+        {par && (
+          <div className={styles.panelStatus}>
+            <BufferBadge clean={clean} par={par} />
+          </div>
+        )}
       </section>
 
       <section className={styles.panel} aria-labelledby="rooms-heading">

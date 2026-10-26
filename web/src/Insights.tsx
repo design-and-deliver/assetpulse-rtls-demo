@@ -20,16 +20,25 @@ interface AskResult {
   failed?: string;
 }
 
+/** Mirrors `ShiftMetrics` in server/src/snowflake/insights.ts. */
+interface ShiftMetrics {
+  ordersOpened: number;
+  ordersDelivered: number;
+  medianMinutesToDeliver: number | null;
+  parBreaches: number;
+  pumpMoves: number;
+  events: number;
+}
+
+/** The `glance` route's body: the metrics plus which run they describe (null: no floor running). */
+interface Glance extends ShiftMetrics {
+  session: string | null;
+}
+
 /** Mirrors `ShiftSummary` in server/src/snowflake/insights.ts. */
 interface ShiftSummary {
   events: number;
-  metrics: {
-    ordersOpened: number;
-    ordersDelivered: number;
-    medianMinutesToDeliver: number | null;
-    parBreaches: number;
-    pumpMoves: number;
-  };
+  metrics: ShiftMetrics;
   summary: string;
 }
 
@@ -45,18 +54,13 @@ function Summary({ data }: { data: ShiftSummary }) {
     return <p className={styles.insightsAnswer}>{NO_ACTIVITY}</p>;
   }
   const m = data.metrics;
+  // The other three measured numbers are the Glance cards above the tabs; never show one twice.
   const stats: [string, string][] = [
     ['Orders opened', String(m.ordersOpened)],
-    ['Orders delivered', String(m.ordersDelivered)],
-    ['Median page to delivery', duration(m.medianMinutesToDeliver)],
-    ['Shelf hit minimum', String(m.parBreaches)],
     ['Pump moves', String(m.pumpMoves)],
   ];
   return (
-    <section className={styles.shift} aria-labelledby="shift-h">
-      <h3 id="shift-h" className={styles.shiftHeading}>
-        Last 12 hours
-      </h3>
+    <section className={styles.shift} aria-label="Session summary">
       <dl className={styles.shiftStats}>
         {stats.map(([label, value]) => (
           <div key={label} className={styles.shiftStat}>
@@ -78,15 +82,89 @@ function Summary({ data }: { data: ShiftSummary }) {
   );
 }
 
+/**
+ * The cards' numbers, fetched on every open: plain SQL, no Cortex. `failed` lets the dialog
+ * fall back to the tabs alone, since the cards are a bonus and Ask may still work.
+ */
+function useGlance(hospitalId: string, opens: number) {
+  const [glance, setGlance] = useState<Glance | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [checks, setChecks] = useState(0);
+  useEffect(() => {
+    if (opens === 0) return;
+    api<Glance>(`/api/insights/glance?h=${encodeURIComponent(hospitalId)}`)
+      .then((g) => {
+        setGlance(g);
+        setFailed(false);
+      })
+      .catch(() => setFailed(true));
+  }, [hospitalId, opens, checks]);
+  return { glance, failed, check: () => setChecks((n) => n + 1) };
+}
+
+/** The three numbers a charge nurse or supply tech checks first, above both tabs. */
+function GlanceCards({ metrics }: { metrics: ShiftMetrics }) {
+  const cards: [string, string][] = [
+    ['Orders delivered', String(metrics.ordersDelivered)],
+    ['Median delivery', duration(metrics.medianMinutesToDeliver)],
+    ['Shelf hit minimum', String(metrics.parBreaches)],
+  ];
+  return (
+    <section className={styles.glance} aria-labelledby="glance-h">
+      <h3 id="glance-h" className={styles.glanceHeading}>
+        This session
+      </h3>
+      <dl className={styles.shiftStats}>
+        {cards.map(([label, value]) => (
+          <div key={label} className={styles.shiftStat}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/**
+ * The floor has activity (the button checks before opening) but Snowflake has none yet: events
+ * reach it in 5 s batches, so a quick open lands in that gap.
+ */
+function NothingYet({ onCheck }: { onCheck: () => void }) {
+  return (
+    <div className={styles.insightsEmpty}>
+      <p>Check again in a few seconds: your latest moves are still on their way to Snowflake.</p>
+      <p className={styles.insightsFoot}>
+        <button type="button" className={styles.button} onClick={onCheck}>
+          Check again
+        </button>
+      </p>
+    </div>
+  );
+}
+
 /** Short chip labels; the full question goes into the box, so the visitor sees what was asked. */
 const EXAMPLES = [
-  { label: 'Orders today', question: 'How many work orders were opened today?' },
+  { label: 'Orders opened', question: 'How many work orders were opened?' },
   { label: 'Median delivery', question: 'Median minutes from page to delivery, by tech' },
   { label: 'Shelf at minimum', question: 'How many times did the shelf drop to its minimum?' },
 ];
 
-/** SQL returns numbers as strings with many decimals ("0.066666667"); show at most two. */
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const TIMESTAMP_FORMAT: Intl.DateTimeFormatOptions = {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+};
+
+/**
+ * Timestamps (ISO from the server) read as local time. SQL returns numbers as strings with many
+ * decimals ("0.066666667"); show at most two.
+ */
 function formatCell(cell: string): string {
+  if (ISO_TIMESTAMP.test(cell)) return new Date(cell).toLocaleString(undefined, TIMESTAMP_FORMAT);
   const n = Number(cell);
   return cell.trim() !== '' && Number.isFinite(n)
     ? n.toLocaleString(undefined, { maximumFractionDigits: 2 })
@@ -328,7 +406,7 @@ function SummaryPanel({
       hidden={hidden}
     >
       <div aria-live="polite">
-        {busy && <p className={styles.muted}>Summarizing the last 12 hours…</p>}
+        {busy && <p className={styles.muted}>Summarizing this session…</p>}
         {error && <p className={styles.insightsError}>{error}</p>}
         {summary && <Summary data={summary} />}
       </div>
@@ -347,12 +425,23 @@ function SummaryPanel({
 }
 
 /** Each tab shows only its own latest result, so answers never pile up. */
-function InsightsBody({ hospitalId }: { hospitalId: string }) {
+function InsightsBody({ hospitalId, opens }: { hospitalId: string; opens: number }) {
   const [tab, setTab] = useState<Tab>('ask');
   const [busy, setBusy] = useState<Tab | null>(null);
   const [error, setError] = useState<{ tab: Tab; text: string } | null>(null);
   const [answer, setAnswer] = useState<AskResult | null>(null);
   const [summary, setSummary] = useState<ShiftSummary | null>(null);
+
+  const { glance, failed, check } = useGlance(hospitalId, opens);
+
+  // A reset starts a new session: the last run's answers no longer describe this floor.
+  const session = glance?.session;
+  useEffect(() => {
+    setAnswer(null);
+    setSummary(null);
+    setError(null);
+    setTab('ask');
+  }, [session]);
 
   const h = encodeURIComponent(hospitalId);
   /**
@@ -395,8 +484,23 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
     error: error?.tab === t ? error.text : null,
   });
 
+  if (!glance && !failed) {
+    return (
+      <div className={styles.insightsBody}>
+        <p className={styles.muted}>Loading…</p>
+      </div>
+    );
+  }
+  if (glance && glance.events === 0) {
+    return (
+      <div className={styles.insightsBody}>
+        <NothingYet onCheck={check} />
+      </div>
+    );
+  }
   return (
     <div className={styles.insightsBody}>
+      {glance && <GlanceCards metrics={glance} />}
       <Tabs tab={tab} onSelect={select} />
       <AskPanel hidden={tab !== 'ask'} {...panel('ask')} answer={answer} onAsk={ask} />
       <SummaryPanel
@@ -409,20 +513,51 @@ function InsightsBody({ hospitalId }: { hospitalId: string }) {
   );
 }
 
+/** Shown under the button instead of opening, while this session has nothing to analyze. */
+const HINT = 'Move a few pumps on the floor first to give Insights something to analyze.';
+const HINT_MS = 5_000;
+
 /**
  * Progressive disclosure: a header button (only when the server has Snowflake on) opens the
  * panel as a modal <dialog>, which brings Esc-to-close, a focus trap, and a backdrop. The body
  * stays mounted while closed, so the last answer is still there when it reopens.
  */
-export function Insights({ hospitalId }: { hospitalId: string }) {
+export function Insights({ hospitalId, active }: { hospitalId: string; active: boolean }) {
   const enabled = useEnabled();
+  const [hint, setHint] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  /** The hint leaves on activity, after a few seconds, on a click anywhere else, or on Escape. */
+  useEffect(() => {
+    if (!hint) return;
+    if (active) return setHint(false);
+    const hide = () => setHint(false);
+    const timer = setTimeout(hide, HINT_MS);
+    // A click on the button itself re-shows the hint rather than toggling it off and on.
+    const onPointer = (e: PointerEvent) => {
+      if (!anchor.current?.contains(e.target as Node)) hide();
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') hide();
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [hint, active]);
   const dialog = useRef<HTMLDialogElement>(null);
+  /** Counts opens, so the cards refresh each time without loading while the dialog is closed. */
+  const [opens, setOpens] = useState(0);
   if (!enabled) return null;
   const close = () => dialog.current?.close();
   /** showModal() would focus the first control (×); start on the question box instead. */
   const open = () => {
+    if (!active) return setHint(true);
     dialog.current?.showModal();
     dialog.current?.querySelector('input')?.focus();
+    setOpens((n) => n + 1);
   };
   /** A click on the backdrop lands on the <dialog> itself; clicks inside land on its children. */
   const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
@@ -431,12 +566,18 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
 
   return (
     <>
-      <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
-        <span aria-hidden="true" className={styles.insightsGlyph}>
-          &#10022;
-        </span>{' '}
-        Insights
-      </button>
+      <span ref={anchor} className={styles.insightsAnchor}>
+        <button type="button" className={appStyles.button} aria-haspopup="dialog" onClick={open}>
+          <span aria-hidden="true" className={styles.insightsGlyph}>
+            &#10022;
+          </span>{' '}
+          Insights
+        </button>
+        {/* Always rendered, so screen readers announce the hint when it appears. */}
+        <span role="status" className={styles.insightsHint}>
+          {hint ? HINT : ''}
+        </span>
+      </span>
       <dialog
         ref={dialog}
         className={styles.insightsDialog}
@@ -452,7 +593,7 @@ export function Insights({ hospitalId }: { hospitalId: string }) {
             &times;
           </button>
         </div>
-        <InsightsBody hospitalId={hospitalId} />
+        <InsightsBody hospitalId={hospitalId} opens={opens} />
       </dialog>
     </>
   );

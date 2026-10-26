@@ -5,13 +5,47 @@
   padding: 14px 16px;
 }
 
+/* Heading centred over the panel, the shelf's rule top right; the empty left column balances it. */
 .panelTop {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.panelTop > .heading {
+  grid-column: 2;
+  text-align: center;
+}
+
+.panelRule {
+  grid-column: 3;
+  justify-self: end;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* The shelf's live status, under the shelf at the right. */
+.panelStatus {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* Too narrow to share a row: heading, then rule, centred on their own lines. */
+@media (max-width: 599px) {
+  .panelTop {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .panelTop > .heading,
+  .panelRule {
+    grid-column: 1;
+    justify-self: center;
+  }
 }
 
 .heading {
@@ -25,13 +59,9 @@
 
 .panel > .heading {
   margin-bottom: 10px;
+  text-align: center;
 }
 
-.headingNote {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-}
 
 .muted {
   color: var(--text-muted);
@@ -105,6 +135,19 @@
   padding: 8px 10px 10px;
 }
 
+/* Wide, the control panel matches the phone's height, and the rooms grow to fill it. */
+@media (min-width: 1100px) {
+  .panel:has(> .rooms) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rooms {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+}
+
 .roomLabel {
   display: block;
   margin-bottom: 6px;
@@ -175,86 +218,62 @@
   cursor: pointer;
 }
 
-/* --- Panel 3: tech pager --- */
+/* --- Panel 3: the tech's phone, the real /tech app in an iframe --- */
 
-.pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  transition:
-    border-color 200ms ease,
-    background 200ms ease;
-}
-
-.pagerNew {
-  border-color: var(--warn);
-  background: var(--warn-soft);
-}
-
-.pagerText {
+.phonePanel {
   display: grid;
-  gap: 2px;
-  min-width: 0;
+  justify-items: center;
+  gap: 4px;
 }
 
-.pagerTop {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.phoneCaption {
+  justify-self: stretch;
+  text-align: center;
 }
 
-.chip {
-  padding: 1px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--text-muted);
+@media (min-width: 1100px) {
+  .phoneCaption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
-.chipNew {
-  border-color: var(--warn);
-  color: var(--warn);
-  font-weight: 600;
-}
-
-.pagerBody,
-.pagerNotice {
+.phoneNote {
   margin: 0;
-}
-
-.pagerBody code {
-  font-family: var(--mono);
-}
-
-.pagerNotice {
-  color: var(--warn);
-}
-
-.pagerPhone {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
-.action {
-  font: inherit;
-  font-weight: 600;
-  color: var(--on-status); /* white in light mode, near-black on dark mode's lighter fills */
-  background: var(--focus);
+/*
+ * Wide: as tall as the console's --stage; the app draws its own bezel to fit (390 screen + bezel
+ * + room to buzz). Stacked and phone-width sizes follow below.
+ */
+.phoneFrame {
+  width: min(440px, 100%);
+  /* --stage comes from the console layout, so the control panel matches this height. */
+  height: var(--stage, 820px);
   border: 0;
-  border-radius: 8px;
-  padding: 8px 16px;
-  cursor: pointer;
+  background: transparent;
 }
 
-.actionRestock {
-  background: var(--ok);
+/* Stacked under the panel: a fixed, phone-shaped height, so it never squashes. */
+@media (max-width: 1099px) {
+  .phoneFrame {
+    height: 820px;
+  }
 }
 
-.action:disabled {
-  opacity: 0.55;
-  cursor: default;
+/* A phone-width screen has no room for the bezel: the app runs plain, in a card. */
+@media (max-width: 479px) {
+  .phoneFrame {
+    height: 560px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
 }
 
 /* --- Connection pill --- */
@@ -528,7 +547,8 @@
 /* Insights overlay: modal header a step bigger, bolder, centered (ux: design/modal-header) */
 
 .insightsDialog {
-  width: min(640px, calc(100vw - 32px));
+  /* Closer to 4:3 than a wide strip: narrower, with a floor on height (see .insightsBody). */
+  width: min(560px, calc(100vw - 32px));
   max-height: 85vh;
   padding: 0;
   color: var(--text);
@@ -586,7 +606,9 @@
   outline: 2px solid var(--focus);
 }
 
+/* A floor on height, so the dialog keeps its shape and doesn't jump between tabs. */
 .insightsBody {
+  min-height: min(340px, 60vh);
   padding: 14px 18px 16px;
 }
 
@@ -640,15 +662,10 @@
   border-radius: var(--radius);
 }
 
-.shiftHeading {
-  margin: 0 0 10px;
-  font-size: 15px;
-  font-weight: 700;
-}
-
 .shiftStats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  /* Three columns: the Glance cards fill a row; the summary's two leave a third free. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 0;
 }
@@ -688,6 +705,55 @@
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+/* The no-activity hint: a callout under the Insights button, so the dialog never opens empty. */
+.insightsAnchor {
+  position: relative;
+}
+
+.insightsHint {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 8px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Empty between hints: no box, but still in the tree as a live region. */
+.insightsHint:empty {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Snowflake has not caught up yet: the prompt, then Check again centered under it. */
+.insightsEmpty > p:first-child {
+  margin: 8px 0 0;
+  line-height: 1.55;
+}
+
+/* At-a-glance cards above the tabs; the cards themselves reuse .shiftStats / .shiftStat. */
+.glance {
+  margin: 0 0 14px;
+}
+
+.glanceHeading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Ask | Shift summary: one task in view at a time. The selected tab's underline is its state. */

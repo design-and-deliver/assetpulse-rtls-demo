@@ -80,10 +80,18 @@ export type Snapshot = z.infer<typeof snapshotSchema>;
 
 // --- Server → client ---------------------------------------------------------
 
+/**
+ * The `seq` the floor's current session began at (a reset starts a new one). Events after it are
+ * the history Insights reports on, so a console can tell "nothing to analyze yet" without asking.
+ * Optional so older servers still parse.
+ */
+const sessionSeqSchema = z.number().int().nonnegative().optional();
+
 const helloFrame = envelope.extend({
   type: z.literal(FrameType.hello),
   worldId: z.string(),
   seq,
+  sessionSeq: sessionSeqSchema,
   snapshot: snapshotSchema,
 });
 
@@ -130,6 +138,7 @@ const ackFrame = envelope.extend({
 const resyncFrame = envelope.extend({
   type: z.literal(FrameType.resync),
   seq,
+  sessionSeq: sessionSeqSchema,
   snapshot: snapshotSchema,
 });
 

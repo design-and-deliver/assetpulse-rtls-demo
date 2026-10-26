@@ -229,10 +229,10 @@ describe('tech names', () => {
   };
 
   it('numbers devices per hospital in first-seen order, and a device keeps its name', async () => {
-    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Tech 1' });
+    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Joe Tech' });
     expect((await nameOf(H1, 'phonedevice01')).body).toEqual({ name: 'Tech 2' });
-    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Tech 1' });
-    expect((await nameOf(H2, 'phonedevice01')).body).toEqual({ name: 'Tech 1' });
+    expect((await nameOf(H1, 'pagerdevice01')).body).toEqual({ name: 'Joe Tech' });
+    expect((await nameOf(H2, 'phonedevice01')).body).toEqual({ name: 'Joe Tech' });
   });
 
   it('rejects a missing hospital or a malformed device key', async () => {

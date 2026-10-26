@@ -23,7 +23,7 @@ import {
   summarize,
   type InsightsOptions,
 } from '../src/snowflake/insights.js';
-import { jwtAccount, signJwt, SnowflakeRest } from '../src/snowflake/rest.js';
+import { jwtAccount, signJwt, SnowflakeRest, toIso } from '../src/snowflake/rest.js';
 import { checkSchema, EXPECTED_COLUMNS, missingColumns } from '../src/snowflake/schema.js';
 
 const H = 'hosp0001';
@@ -157,6 +157,14 @@ describe('SnowflakeRest', () => {
     expect(fetchImpl.mock.calls[1]![0]).toMatch(/\/api\/v2\/statements\/abc$/);
   });
 
+  it('turns timestamp and date cells into ISO strings, leaving other cells alone', () => {
+    expect(toIso('1792988127.933000000 1440', 'timestamp_tz')).toBe('2026-10-26T04:15:27.933Z');
+    expect(toIso('1792988127.933000000', 'timestamp_ntz')).toBe('2026-10-26T04:15:27.933Z');
+    expect(toIso('20752', 'date')).toBe('2026-10-26');
+    expect(toIso('0.0667', 'fixed')).toBe('0.0667');
+    expect(toIso(null, 'timestamp_ltz')).toBeNull();
+  });
+
   it('throws Snowflake’s message on an error status', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -264,7 +272,7 @@ describe('insights', () => {
       query: vi.fn(async (sql: string) =>
         sql.includes('AI_SUMMARIZE_AGG')
           ? { columns: [], rows: [['12', 'Quiet shift.']] }
-          : { columns: [], rows: [['2', '1', '0.75', '2', '6']] },
+          : { columns: [], rows: [['2', '1', '0.75', '2', '6', '12']] },
       ),
     };
     expect(await summarize(sf, H)).toEqual({
@@ -276,6 +284,7 @@ describe('insights', () => {
         medianMinutesToDeliver: 0.75,
         parBreaches: 2,
         pumpMoves: 6,
+        events: 12,
       },
     });
     for (const [sql, binds] of sf.query.mock.calls as unknown as [string, string[]][]) {
@@ -372,6 +381,44 @@ describe('insights guardrails', () => {
     expect(await res.json()).toMatchObject({ retryAfterMs: 2_000 });
   });
 
+  it('serves the glance cards from SQL alone, without holding up an Ask', async () => {
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),
+      query: vi.fn(async () => ({ columns: [], rows: [['3', '2', '1.5', '1', '4']] })),
+    };
+    const base = await serve(sf, { now: () => 1_000 });
+    const res = await fetch(`${base}/glance?h=${H}`);
+    expect(await res.json()).toMatchObject({ ordersDelivered: 2, medianMinutesToDeliver: 1.5 });
+    expect(sf.query).toHaveBeenCalledTimes(1);
+    expect(sf.query.mock.calls[0]![0]).not.toContain('AI_');
+    const ask = await fetch(`${base}/ask?h=${H}`, {
+      method: 'POST',
+      body: JSON.stringify({ question: 'Orders by tech?' }),
+    });
+    expect(ask.status).toBe(200);
+  });
+
+  it('scopes every route to the live session, and reports nothing when no floor is running', async () => {
+    const sf = {
+      askAnalyst: vi.fn(async () => [{ type: 'text', text: 'Which tech?' }]),
+      query: vi.fn(async () => ({ columns: [], rows: [['1', '1', '0.5', '0', '3', '9']] })),
+    };
+    const sessions = new Map([[H, `${H}-run1`]]);
+    const base = await serve(sf, { sessionOf: (h) => sessions.get(h) ?? null });
+    await fetch(`${base}/glance?h=${H}`);
+    expect(sf.query.mock.calls[0]![1]).toEqual(Array(6).fill(`${H}-run1`));
+    await fetch(`${base}/ask?h=${H}`, {
+      method: 'POST',
+      body: JSON.stringify({ question: 'Orders by tech?' }),
+    });
+    expect(sf.askAnalyst.mock.calls[0]![0]).toContain(`HOSPITAL_ID = '${H}-run1'`);
+
+    sf.query.mockClear();
+    const idle = await (await fetch(`${base}/glance?h=aaaa0009`)).json();
+    expect(idle).toMatchObject({ events: 0, ordersDelivered: 0 });
+    expect(sf.query).not.toHaveBeenCalled();
+  });
+
   it('caps calls per hour across every hospital', async () => {
     const sf = { askAnalyst: vi.fn(), query: vi.fn(async () => okSummary()) };
     const base = await serve(sf, { hourlyLimit: 2 });
@@ -430,6 +477,7 @@ describe('app with the layer off (the production default)', () => {
     const base = `http://localhost:${app.port}/api/insights`;
     expect(await (await fetch(`${base}/status`)).json()).toEqual({ enabled: false });
     expect((await fetch(`${base}/summary?h=${H}`)).status).toBe(404);
+    expect((await fetch(`${base}/glance?h=${H}`)).status).toBe(404);
     expect((await fetch(`${base}/ask?h=${H}`, { method: 'POST', body: '{}' })).status).toBe(404);
     expect(app.sink).toBeInstanceOf(HistorySink);
   });

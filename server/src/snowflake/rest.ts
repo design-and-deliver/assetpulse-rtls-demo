@@ -55,15 +55,30 @@ export type Bind = string | number;
 
 export interface QueryResult {
   columns: string[];
-  /** The SQL API returns every cell as a string (or null). */
+  /** The SQL API returns every cell as a string (or null); timestamps and dates as ISO 8601. */
   rows: (string | null)[][];
 }
 
 interface StatementResponse {
   statementHandle?: string;
   message?: string;
-  resultSetMetaData?: { rowType: { name: string }[] };
+  resultSetMetaData?: { rowType: { name: string; type?: string }[] };
   data?: (string | null)[][];
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * The SQL API sends a timestamp as epoch seconds ("1792988127.933000000", plus " 1440"-style
+ * offset minutes for TIMESTAMP_TZ) and a date as days since epoch. ISO strings read anywhere.
+ */
+export function toIso(cell: string | null, type: string | undefined): string | null {
+  if (cell === null) return null;
+  if (type?.startsWith('timestamp')) {
+    return new Date(Math.round(Number(cell.split(' ')[0]) * 1000)).toISOString();
+  }
+  if (type === 'date') return new Date(Number(cell) * DAY_MS).toISOString().slice(0, 10);
+  return cell;
 }
 
 export interface AnalystContent {
@@ -144,9 +159,10 @@ export class SnowflakeRest {
       ));
     }
     if (status === 202) throw new Error('snowflake: statement still running after polling');
+    const rowType = body.resultSetMetaData?.rowType ?? [];
     return {
-      columns: body.resultSetMetaData?.rowType.map((col) => col.name) ?? [],
-      rows: body.data ?? [],
+      columns: rowType.map((col) => col.name),
+      rows: (body.data ?? []).map((row) => row.map((cell, i) => toIso(cell, rowType[i]?.type))),
     };
   }
 

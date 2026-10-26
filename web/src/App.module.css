@@ -4,19 +4,25 @@
   padding: 16px;
 }
 
+/* Centered: the control panel's title block, then its tools under it. */
 .header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
   margin-bottom: var(--gap);
+  text-align: center;
 }
 
 .title {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
+}
+
+.titleSub {
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .subtitle {
@@ -57,4 +63,59 @@
 .main {
   display: grid;
   gap: var(--gap);
+}
+
+/* Narrow: the control panel, then the phone under it. Wide: side by side. */
+.layout {
+  display: grid;
+  gap: 20px;
+}
+
+/*
+ * The control panel's group box: tinted, so its white panels read as one app, and framed like a
+ * desktop window (firm edge, a soft halo) so it holds its own beside
+ * the phone's dark bezel.
+ */
+.console {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--control-border);
+  border-radius: 16px;
+  /* Centred, not dropped: a downward shadow reads as extra height beside the shadowless phone. */
+  box-shadow: 0 0 28px rgb(0 0 0 / 10%);
+}
+
+@media (min-width: 1100px) {
+  .shell {
+    max-width: 1240px;
+  }
+
+  /*
+   * One height for both: the phone's iframe is --stage tall, and the phone sits 10px inside it
+   * (its embed padding), so the panel drops 10px and is 20px shorter to meet its top and bottom.
+   */
+  .layout {
+    --stage: clamp(600px, calc(100vh - 32px), 880px);
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: start;
+  }
+
+  .console {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(var(--stage) - 20px);
+    margin-top: 10px;
+  }
+
+  /* Shelf, rooms, wire drawer: the rooms take the extra height. */
+  .main {
+    flex: 1;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .phone {
+    position: sticky;
+    top: 16px;
+  }
 }

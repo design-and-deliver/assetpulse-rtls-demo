@@ -182,9 +182,12 @@ describe('resume', () => {
     const ops = await connect(app, ['floor']);
     const watcher = await connect(app, ['role:tech']);
     await ops.command('gen', out);
+    const before = app.registry.get(H1)!.session;
 
     const from = watcher.frames.length;
     await ops.command('reset', reset);
+    // Insights history is keyed by session, so a reset starts the dialog fresh too.
+    expect(app.registry.get(H1)!.session).not.toBe(before);
     const live = await watcher.next(FrameType.resync, () => true, from);
     expect(live.snapshot.par.clean).toBe(5);
 

@@ -12,20 +12,31 @@ export interface WorldView {
   assets: Map<string, Asset>;
   workOrders: Map<string, WorkOrder>;
   par: ParState | null;
+  /** Where this session's history began, and the newest event seen: see `sessionHasActivity`. */
+  sessionSeq: number;
+  lastSeq: number;
 }
 
-export const EMPTY_WORLD: WorldView = { assets: new Map(), workOrders: new Map(), par: null };
+export const EMPTY_WORLD: WorldView = {
+  assets: new Map(),
+  workOrders: new Map(),
+  par: null,
+  sessionSeq: 0,
+  lastSeq: 0,
+};
 
 export type WorldFrame = Extract<
   ServerFrame,
   { type: 'hello' | 'resync' | 'asset_changed' | 'par_alert' | 'work_order' }
 >;
 
-function fromSnapshot(snapshot: Snapshot): WorldView {
+function fromSnapshot(snapshot: Snapshot, seq: number, sessionSeq = seq): WorldView {
   return {
     assets: new Map(snapshot.assets.map((a) => [a.id, a])),
     workOrders: new Map(snapshot.workOrders.map((o) => [o.number, o])),
     par: snapshot.par,
+    sessionSeq,
+    lastSeq: seq,
   };
 }
 
@@ -33,7 +44,17 @@ export function applyFrame(world: WorldView, frame: WorldFrame): WorldView {
   switch (frame.type) {
     case FrameType.hello:
     case FrameType.resync:
-      return fromSnapshot(frame.snapshot);
+      return fromSnapshot(frame.snapshot, frame.seq, frame.sessionSeq);
+    default:
+      return { ...applyEvent(world, frame), lastSeq: frame.seq };
+  }
+}
+
+function applyEvent(
+  world: WorldView,
+  frame: Exclude<WorldFrame, { type: 'hello' | 'resync' }>,
+): WorldView {
+  switch (frame.type) {
     case FrameType.assetChanged: {
       const assets = new Map(world.assets);
       assets.set(frame.assetId, { id: frame.assetId, status: frame.status, zoneId: frame.to });
@@ -50,6 +71,11 @@ export function applyFrame(world: WorldView, frame: WorldFrame): WorldView {
       return { ...world, workOrders };
     }
   }
+}
+
+/** Insights reports on this session only, so with no events since it began there is nothing yet. */
+export function sessionHasActivity(world: WorldView): boolean {
+  return world.lastSeq > world.sessionSeq;
 }
 
 /**

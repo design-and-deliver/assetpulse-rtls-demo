@@ -1,6 +1,6 @@
 /*
  * Design tokens. Calm clinical palette: only a PAR breach uses --alert (alarm fatigue is a real
- * clinical concern); a new order on the pager uses the quieter --warn. Follows the OS theme.
+ * clinical concern); a new order on the tech's phone uses the quieter --warn. Follows the OS theme.
  */
 :root {
   color-scheme: light dark;

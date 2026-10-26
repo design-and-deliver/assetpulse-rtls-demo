@@ -11,20 +11,19 @@ const MOVES: [pump: string, room: string][] = [
   ['IVP-103', 'WARD-303'],
 ];
 
-test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume replays', async ({
+test('restock loop: drain the shelf, the phone accepts, restock clears PAR, resume replays', async ({
   browser,
 }) => {
   // The resume step waits out a 10 s outage.
   test.setTimeout(60_000);
 
   const desk = await (await browser.newContext()).newPage();
-  const phone = await (await browser.newContext()).newPage();
-  const pager = desk.getByRole('region', { name: 'Tech pager' });
+  // The tech's phone is the real /tech app in an iframe beside the floor: its own socket.
+  const phone = desk.frameLocator('iframe[title="Tech’s phone app"]');
   const badge = desk.getByRole('status').filter({ hasText: /At min|Buffer OK/ });
 
   await test.step('three pumps to rooms breach PAR', async () => {
     await desk.goto(`/?h=${hospital}`);
-    await phone.goto(`/tech?h=${hospital}`);
     await expect(badge).toHaveText('✓ Buffer OK (5/5)');
     for (const [pump, room] of MOVES) {
       const pill = desk.locator(`button[data-pump="${pump}"]`);
@@ -35,23 +34,17 @@ test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume r
     await expect(badge).toHaveText('⚠ At min (2/5)');
   });
 
-  await test.step('the order reaches the pager and the phone', async () => {
-    await expect(pager.getByText('New order')).toBeVisible();
-    await expect(phone.getByRole('button', { name: 'Accept' })).toBeVisible();
+  await test.step('the order reaches the phone as a notification', async () => {
+    // The phone sits locked: the page lands on its lock screen, and opening it shows the order.
+    await phone.getByRole('button', { name: /New work order/ }).click();
+    await expect(phone.getByRole('button', { name: 'Accept order' })).toBeVisible();
   });
 
-  await test.step('pager accepts, and the phone loses the order', async () => {
-    await pager.getByRole('button', { name: 'Accept' }).click();
-    await expect(pager.getByRole('button', { name: 'Complete restock (+3)' })).toBeVisible();
-    // The phone lists only open orders and its own, so another tech's acceptance clears it.
-    await expect(phone.getByRole('button', { name: 'Accept' })).toBeHidden();
-    await expect(phone.getByText(/^Nothing to restock/)).toBeVisible();
-  });
-
-  await test.step('restock clears PAR', async () => {
-    await pager.getByRole('button', { name: 'Complete restock (+3)' }).click();
+  await test.step('the tech accepts and restocks, which clears PAR', async () => {
+    await phone.getByRole('button', { name: 'Accept order' }).click();
+    await phone.getByRole('button', { name: 'Mark 3 pumps delivered' }).click();
     await expect(badge).toHaveText('✓ Buffer OK (5/5)');
-    await expect(pager.getByText('Standby')).toBeVisible();
+    await expect(phone.getByText('All caught up')).toBeVisible();
   });
 
   await test.step('resume replays the outage', async () => {
