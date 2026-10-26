@@ -90,9 +90,27 @@
     max-width: 1240px;
   }
 
+  /*
+   * One height for both: the phone's iframe is --stage tall, and the phone sits 10px inside it
+   * (its embed padding), so the panel drops 10px and is 20px shorter to meet its top and bottom.
+   */
   .layout {
+    --stage: clamp(600px, calc(100vh - 32px), 880px);
     grid-template-columns: minmax(0, 1fr) 440px;
     align-items: start;
+  }
+
+  .console {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(var(--stage) - 20px);
+    margin-top: 10px;
+  }
+
+  /* Shelf, rooms, wire drawer: the rooms take the extra height. */
+  .main {
+    flex: 1;
+    grid-template-rows: auto 1fr auto;
   }
 
   .phone {

@@ -105,6 +105,19 @@
   padding: 8px 10px 10px;
 }
 
+/* Wide, the control panel matches the phone's height, and the rooms grow to fill it. */
+@media (min-width: 1100px) {
+  .panel:has(> .rooms) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rooms {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+}
+
 .roomLabel {
   display: block;
   margin-bottom: 6px;
@@ -211,8 +224,8 @@
  */
 .phoneFrame {
   width: min(440px, 100%);
-  height: min(820px, calc(100vh - 170px));
-  min-height: 560px;
+  /* --stage comes from the console layout, so the control panel matches this height. */
+  height: var(--stage, 820px);
   border: 0;
   background: transparent;
 }
