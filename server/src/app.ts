@@ -124,6 +124,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     schemaOk: snowflake.schemaOk,
     visibleTo: localOrPublic(process.env.INSIGHTS_PUBLIC === '1'),
     sessionOf: (hospitalId) => registry.get(hospitalId)?.session ?? null,
+    beforeRead: () => snowflake.sink?.flush() ?? Promise.resolve(),
   });
   const registry = new WorldRegistry({
     ...options,

@@ -25,6 +25,16 @@
   color: var(--text-muted);
 }
 
+.tourLink {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.tourLink a {
+  color: var(--focus);
+  font-weight: 600;
+}
+
 .subtitle {
   margin: 2px 0 0;
   color: var(--text-muted);

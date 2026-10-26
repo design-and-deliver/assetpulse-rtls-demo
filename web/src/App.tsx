@@ -32,6 +32,11 @@ export function App({ store, hospitalId }: { store: ConsoleStore; hospitalId: st
                 Drag {TO_BREACH} pumps into patient rooms to drop the shelf to its minimum and page
                 a tech.
               </p>
+              <p className={styles.tourLink}>
+                <a href="/tour">
+                  Watch the 2-minute tour <span aria-hidden="true">→</span>
+                </a>
+              </p>
             </div>
             <div className={styles.headerTools}>
               <ConnectionPill connection={connection} />
