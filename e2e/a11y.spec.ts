@@ -87,7 +87,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
     test('tech handheld', async ({ page }) => {
       await page.goto(`/tech?h=${hospital}`);
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      // Desktop width shows the phone frame, which starts on its lock screen: scan both screens.
+      await page.getByRole('button', { name: 'Tap to open AssetPulse' }).waitFor();
+      await expectNoViolations(page);
+      await page.getByRole('button', { name: 'Tap to open AssetPulse' }).click();
+      await expect(page.getByRole('heading', { name: 'AssetPulse' })).toBeVisible();
       await expectNoViolations(page);
     });
 

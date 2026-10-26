@@ -37,6 +37,8 @@ test('restock loop: drain the shelf, pager accepts, restock clears PAR, resume r
 
   await test.step('the order reaches the pager and the phone', async () => {
     await expect(pager.getByText('New order')).toBeVisible();
+    // On a desktop-width page the phone sits locked: the page lands as a notification.
+    await phone.getByRole('button', { name: /New work order/ }).click();
     await expect(phone.getByRole('button', { name: 'Accept' })).toBeVisible();
   });
 

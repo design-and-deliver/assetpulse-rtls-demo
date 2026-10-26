@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LockScreen } from './src/LockScreen';
 import { OrderCard } from './src/OrderCard';
 import { PhoneFrame } from './src/PhoneFrame';
 import { usePalette, type Palette } from './src/theme';
-import { useTechSession, type Status } from './src/useTechSession';
+import { useTechSession, type Status, type TechSession } from './src/useTechSession';
 
 const LABEL: Record<Status, string> = {
   connecting: 'connecting…',
@@ -20,15 +21,21 @@ const DROPPED = new Set<Status>(['reconnecting', 'killed']);
 
 export default function App() {
   const { palette } = usePalette();
+  // One session for both screens, so locking the phone never drops the socket or the orders.
+  const session = useTechSession();
+  const paged = session.orders.filter((o) => o.state === 'open').length;
   return (
-    <PhoneFrame palette={palette}>
-      <TechApp />
+    <PhoneFrame
+      palette={palette}
+      paged={paged}
+      lockScreen={(unlock) => <LockScreen orders={session.orders} onOpen={unlock} />}
+    >
+      <TechApp session={session} />
     </PhoneFrame>
   );
 }
 
-function TechApp() {
-  const session = useTechSession();
+function TechApp({ session }: { session: TechSession }) {
   const { status, hospitalId, techId, orders, notice } = session;
   const live = status === 'open';
   const { palette, dark } = usePalette();
