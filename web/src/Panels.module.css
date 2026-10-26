@@ -5,7 +5,7 @@
   padding: 14px 16px;
 }
 
-/* Heading centred over the panel, its status badge pinned right: an empty column balances it. */
+/* Heading centred over the panel: its rule pinned left, its status badge pinned right. */
 .panelTop {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -24,16 +24,31 @@
   justify-self: end;
 }
 
-/* Too narrow to share a row: the heading on its own line, the badge centred under it. */
+.panelRule {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Too narrow to share a row: heading, rule, then badge, each centred on its own line. */
 @media (max-width: 599px) {
   .panelTop {
     grid-template-columns: 1fr;
+    gap: 4px;
   }
 
   .panelTop > .heading,
+  .panelRule,
   .panelTop > :last-child:not(.heading) {
     grid-column: 1;
+    grid-row: auto;
     justify-self: center;
+  }
+
+  .panelTop > .heading {
+    order: -1;
   }
 }
 
@@ -51,12 +66,6 @@
   text-align: center;
 }
 
-.panelFoot {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--text-muted);
-  text-align: center;
-}
 
 .muted {
   color: var(--text-muted);
