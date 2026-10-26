@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { OrderCard } from './src/OrderCard';
+import { PhoneFrame } from './src/PhoneFrame';
 import { usePalette, type Palette } from './src/theme';
 import { useTechSession, type Status } from './src/useTechSession';
 
@@ -18,6 +19,15 @@ const LABEL: Record<Status, string> = {
 const DROPPED = new Set<Status>(['reconnecting', 'killed']);
 
 export default function App() {
+  const { palette } = usePalette();
+  return (
+    <PhoneFrame palette={palette}>
+      <TechApp />
+    </PhoneFrame>
+  );
+}
+
+function TechApp() {
   const session = useTechSession();
   const { status, hospitalId, techId, orders, notice } = session;
   const live = status === 'open';
