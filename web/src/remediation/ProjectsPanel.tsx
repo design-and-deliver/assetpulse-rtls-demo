@@ -64,34 +64,27 @@ function ProjectItem({
   );
 }
 
-export interface ProjectsPanelProps {
+export interface ProjectListProps {
   projects: RemediationProject[] | null;
   busy: boolean;
   onAdvance: (project: RemediationProject) => void;
 }
 
-export function ProjectsPanel({ projects, busy, onAdvance }: ProjectsPanelProps) {
+/** The projects, newest first, each with its progress and next step. Shown in the Projects modal. */
+export function ProjectList({ projects, busy, onAdvance }: ProjectListProps) {
+  if (!projects) return <p className={styles.projectsEmpty}>Loading…</p>;
+  if (projects.length === 0) {
+    return (
+      <p className={styles.projectsEmpty}>
+        No projects yet. Select devices, or filter to a set, then create one.
+      </p>
+    );
+  }
   return (
-    <section className={`${styles.card} ${styles.projects}`} aria-labelledby="projects-heading">
-      <div className={styles.projectsTop}>
-        <h2 id="projects-heading" className={styles.cardHeading}>
-          Remediation projects
-        </h2>
-        {projects && projects.length > 0 && <span className={styles.muted}>{projects.length}</span>}
-      </div>
-      {projects && projects.length > 0 ? (
-        <ul className={styles.projectList}>
-          {projects.map((p) => (
-            <ProjectItem key={p.id} project={p} busy={busy} onAdvance={onAdvance} />
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.projectsEmpty}>
-          {projects
-            ? 'No projects yet. Select devices, or filter to a set, then create one.'
-            : 'Loading…'}
-        </p>
-      )}
-    </section>
+    <ul className={styles.projectList}>
+      {projects.map((p) => (
+        <ProjectItem key={p.id} project={p} busy={busy} onAdvance={onAdvance} />
+      ))}
+    </ul>
   );
 }

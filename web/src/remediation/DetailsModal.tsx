@@ -21,11 +21,14 @@ export type Detail = { kind: 'device' | 'vulnerability'; device: Device };
 export function Modal({
   kicker,
   title,
+  mono = false,
   onClose,
   children,
 }: {
   kicker: string;
   title: string;
+  /** Identifiers (asset tags, CVEs) read best in the monospace face. */
+  mono?: boolean;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -53,7 +56,7 @@ export function Modal({
           ×
         </button>
         <p className={styles.modalKicker}>{kicker}</p>
-        <h2 id={titleId} className={styles.modalTitle}>
+        <h2 id={titleId} className={`${styles.modalTitle} ${mono ? styles.mono : ''}`}>
           {title}
         </h2>
         {children}

@@ -70,16 +70,17 @@ test('remediation: filter, sort, select, create a project, and advance it', asyn
   });
 
   await test.step('the project is listed and its devices are now Planned', async () => {
-    const projects = page.getByRole('region', { name: 'Remediation projects' });
-    const project = projects
-      .getByRole('listitem')
-      .filter({ hasText: 'Patch two critical devices' });
-    await expect(project).toContainText('2 devices');
-    await expect(project).toContainText('Open');
     for (const tag of picked) {
       await expect(rows(page).filter({ hasText: tag })).toContainText('Planned');
     }
     await expect(page.getByText('0 devices selected')).toBeVisible();
+    await page.getByRole('button', { name: 'Projects, 1' }).click();
+    const project = page
+      .getByRole('dialog', { name: 'Projects' })
+      .getByRole('listitem')
+      .filter({ hasText: 'Patch two critical devices' });
+    await expect(project).toContainText('2 devices');
+    await expect(project).toContainText('Open');
   });
 
   await test.step('advancing the project moves it to In progress, then Done', async () => {
@@ -89,6 +90,8 @@ test('remediation: filter, sort, select, create a project, and advance it', asyn
     );
     await page.getByRole('button', { name: 'Mark done: Patch two critical devices' }).click();
     await expect(page.getByRole('status')).toHaveText('“Patch two critical devices” is now Done.');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Projects' })).toBeHidden();
     for (const tag of picked) {
       await expect(rows(page).filter({ hasText: tag })).toContainText('Remediated');
     }
@@ -132,20 +135,16 @@ test('remediation: the asset tag and the CVE open their details', async ({ page 
   });
 });
 
-test('remediation: at a 1280px laptop width the projects sit beside the grid', async ({ page }) => {
+test('remediation: at a 1280px laptop width the grid has the page to itself', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(`/riskradar?h=lap${customer.slice(3)}`);
   await settled(page);
-  const grid = await page
-    .getByRole('region', { name: 'Vulnerable devices', exact: true })
-    .boundingBox();
-  const projects = await page.getByRole('region', { name: 'Remediation projects' }).boundingBox();
-  expect(projects!.x).toBeGreaterThan(grid!.x + grid!.width);
+  const region = page.getByRole('region', { name: 'Vulnerable devices', exact: true });
+  const grid = await region.boundingBox();
+  expect(grid!.width).toBeGreaterThan(1280 * 0.85);
+  await expect(page.getByRole('region', { name: 'Remediation projects' })).toHaveCount(0);
   // The grid's own scroll box holds every column without scrolling sideways.
-  const scroll = await page
-    .getByRole('region', { name: 'Vulnerable devices', exact: true })
-    .evaluate((el) => el.scrollWidth - el.clientWidth);
-  expect(scroll).toBeLessThanOrEqual(1);
+  expect(await region.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test('remediation: a column filter works from the keyboard alone', async ({ page }) => {

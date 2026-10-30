@@ -11,7 +11,7 @@ import type { RemediationApi } from './api';
 import { DeviceGrid, Pager } from './DeviceGrid';
 import { DeviceDetails, Modal, VulnerabilityDetails, type Detail } from './DetailsModal';
 import { ColumnFilter, SearchBox } from './Filters';
-import { ProjectsPanel } from './ProjectsPanel';
+import { ProjectList } from './ProjectsPanel';
 import {
   activeChips,
   clearFilters,
@@ -196,6 +196,7 @@ function DetailModal({
     <Modal
       kicker={isDevice ? 'Device' : 'Vulnerability'}
       title={isDevice ? device.assetTag : device.cve}
+      mono
       onClose={() => onChange(null)}
     >
       {isDevice ? (
@@ -211,6 +212,27 @@ function DetailModal({
   );
 }
 
+function ProjectsButton({
+  projects,
+  onOpen,
+}: {
+  projects: RemediationProject[] | null;
+  onOpen: () => void;
+}) {
+  const count = projects?.length ?? 0;
+  return (
+    <button
+      type="button"
+      className={styles.button}
+      aria-haspopup="dialog"
+      aria-label={count > 0 ? `Projects, ${count}` : 'Projects'}
+      onClick={onOpen}
+    >
+      Projects {count > 0 && <span className={styles.countBadge}>{count}</span>}
+    </button>
+  );
+}
+
 const createdNotice = (p: RemediationProject) =>
   `Created “${p.name}” with ${plural(p.deviceIds.length, 'device')}.`;
 
@@ -223,6 +245,7 @@ export function RemediationPage({ api, hospitalId }: { api: RemediationApi; hosp
   const projects = useProjects(api, version);
   const actions = useActions(api, refresh);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [projectsOpen, setProjectsOpen] = useState(false);
 
   // Fewer matches than before (a filter, a status change) can leave us past the last page.
   useEffect(() => {
@@ -258,9 +281,12 @@ export function RemediationPage({ api, hospitalId }: { api: RemediationApi; hosp
           </h1>
           <p className={styles.subtitle}>See the risk. Plan the fix.</p>
         </div>
-        <a className={styles.backLink} href={`/?h=${encodeURIComponent(hospitalId)}`}>
-          ‹ Control panel
-        </a>
+        <div className={styles.headerActions}>
+          <ProjectsButton projects={projects} onOpen={() => setProjectsOpen(true)} />
+          <a className={styles.backLink} href={`/?h=${encodeURIComponent(hospitalId)}`}>
+            ‹ Control panel
+          </a>
+        </div>
       </header>
 
       <main>
@@ -273,7 +299,6 @@ export function RemediationPage({ api, hospitalId }: { api: RemediationApi; hosp
           </p>
         )}
 
-        {/* Grid | projects on wide screens; stacked in that order below. */}
         <div className={styles.layout}>
           <div className={styles.main}>
             <section className={styles.card} aria-labelledby="devices-heading">
@@ -324,15 +349,19 @@ export function RemediationPage({ api, hospitalId }: { api: RemediationApi; hosp
               onCreateFromMatch={createFromMatch}
             />
           </div>
-          <ProjectsPanel
-            projects={projects}
-            busy={actions.busy}
-            onAdvance={(p) => {
-              const next = nextProjectStatus(p.status);
-              if (next) void actions.advance(p, next);
-            }}
-          />
         </div>
+        {projectsOpen && (
+          <Modal kicker="Remediation" title="Projects" onClose={() => setProjectsOpen(false)}>
+            <ProjectList
+              projects={projects}
+              busy={actions.busy}
+              onAdvance={(p) => {
+                const next = nextProjectStatus(p.status);
+                if (next) void actions.advance(p, next);
+              }}
+            />
+          </Modal>
+        )}
         {detail && (
           <DetailModal
             api={api}

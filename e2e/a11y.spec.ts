@@ -112,11 +112,15 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectNoViolations(page);
     });
 
-    test('remediation page, wide two-column layout and phone width', async ({ page }) => {
+    test('remediation page, wide layout, projects dialog, and phone width', async ({ page }) => {
       await page.setViewportSize({ width: 1920, height: 1080 });
       await page.goto(`/riskradar?h=${hospital}`);
       await expect(page.getByRole('table')).toHaveAttribute('aria-busy', 'false');
       await expectNoViolations(page);
+      await page.getByRole('button', { name: /^Projects/ }).click();
+      await expect(page.getByRole('dialog', { name: 'Projects' })).toBeVisible();
+      await expectNoViolations(page);
+      await page.keyboard.press('Escape');
       await page.setViewportSize({ width: 390, height: 844 });
       await expectNoViolations(page);
     });
