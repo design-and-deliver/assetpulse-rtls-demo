@@ -135,16 +135,20 @@ test('remediation: the asset tag and the CVE open their details', async ({ page 
   });
 });
 
-test('remediation: at a 1280px laptop width the grid has the page to itself', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(`/riskradar?h=lap${customer.slice(3)}`);
-  await settled(page);
-  const region = page.getByRole('region', { name: 'Vulnerable devices', exact: true });
-  const grid = await region.boundingBox();
-  expect(grid!.width).toBeGreaterThan(1280 * 0.85);
+test('remediation: the grid is centered with clear side margins', async ({ page }) => {
+  for (const width of [1280, 1920]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/riskradar?h=lap${customer.slice(3)}`);
+    await settled(page);
+    const region = page.getByRole('region', { name: 'Vulnerable devices', exact: true });
+    const grid = (await region.boundingBox())!;
+    const right = width - (grid.x + grid.width);
+    expect(grid.x).toBeGreaterThanOrEqual(64);
+    expect(Math.abs(grid.x - right)).toBeLessThanOrEqual(2);
+    // The grid's own scroll box still holds every column without scrolling sideways.
+    expect(await region.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  }
   await expect(page.getByRole('region', { name: 'Remediation projects' })).toHaveCount(0);
-  // The grid's own scroll box holds every column without scrolling sideways.
-  expect(await region.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test('remediation: a column filter works from the keyboard alone', async ({ page }) => {

@@ -7,7 +7,8 @@
   --lift: 0 1px 2px rgb(16 24 32 / 5%), 0 6px 18px -8px rgb(16 24 32 / 10%);
   --hairline: color-mix(in srgb, var(--border) 65%, transparent);
 
-  max-width: 2160px;
+  /* A centered column: six triage columns fit, and wide screens keep clear side margins. */
+  max-width: 1180px;
   margin: 0 auto;
   padding: 28px 16px 48px;
   font-size: 15px;
