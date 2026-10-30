@@ -1,0 +1,1029 @@
+/*
+ * Remediation page. Same tokens as the console (theme.css): calm surfaces, --alert reserved for
+ * Critical, --focus for selection and actions.
+ */
+
+.shell {
+  --lift: 0 1px 2px rgb(16 24 32 / 5%), 0 6px 18px -8px rgb(16 24 32 / 10%);
+  --hairline: color-mix(in srgb, var(--border) 65%, transparent);
+
+  max-width: 2160px;
+  margin: 0 auto;
+  padding: 28px 16px 48px;
+  font-size: 15px;
+}
+
+@media (min-width: 900px) {
+  .shell {
+    padding: 36px 36px 64px;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Header ---------- */
+
+/* Title centered over the page; the back link sits in the right gutter, or below on narrow screens. */
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+@media (min-width: 700px) {
+  .header {
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+
+  .heading {
+    grid-column: 2;
+  }
+
+  .backLink {
+    justify-self: end;
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.titleSub {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.backLink {
+  color: var(--focus);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* ---------- Notices ---------- */
+
+.notice:empty {
+  display: none;
+}
+
+.notice {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+  font-weight: 600;
+}
+
+.error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--alert-soft);
+  color: var(--alert);
+  border: 1px solid color-mix(in srgb, var(--alert) 35%, transparent);
+  font-weight: 600;
+}
+
+/* ---------- Layout: grid | projects ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* One track that may shrink below the table's width: the grid scrolls inside its own card. */
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Wide screens put the projects beside the grid. */
+@media (min-width: 1200px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  .projects {
+    position: sticky;
+    top: 20px;
+  }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--lift);
+}
+
+/* Clip the grid's sticky header and rows to the card's rounded corners. */
+.main > .card {
+  overflow: hidden;
+}
+
+.cardHeading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---------- Search + column filters ---------- */
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.input,
+.select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 34px;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--surface-2);
+}
+
+.option input {
+  accent-color: var(--focus);
+  margin: 0;
+  width: 17px;
+  height: 17px;
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionCount {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.optionEmpty .optionLabel {
+  color: var(--text-muted);
+}
+
+.search {
+  width: min(320px, 100%);
+}
+
+.filterButton {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  vertical-align: middle;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filterButton:hover {
+  opacity: 1;
+}
+
+.filterButton:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.filterOn {
+  color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 12%, var(--surface));
+}
+
+.filterCount {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--focus);
+  color: var(--on-status);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0;
+}
+
+/* Top layer: the grid's scroll box can't clip it. Placed under its button from script. */
+.popover {
+  position: fixed;
+  inset: auto;
+  width: 248px;
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 10px 14px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow:
+    0 16px 40px -12px rgb(16 24 32 / 30%),
+    0 2px 6px rgb(16 24 32 / 8%);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+
+.popoverTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Active filters as pills, between the toolbar and the grid. */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 40%, var(--surface));
+}
+
+/* ---------- Buttons ---------- */
+
+.button,
+.primary,
+.linkButton {
+  font: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.button {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  padding: 6px 12px;
+  min-height: 32px;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.primary {
+  color: var(--on-status);
+  background: var(--focus);
+  border: 1px solid var(--focus);
+  padding: 6px 14px;
+  min-height: 34px;
+  font-weight: 600;
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--focus) 85%, var(--text));
+}
+
+.button:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.linkButton {
+  color: var(--focus);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkButton:disabled {
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* ---------- Grid toolbar + chips ---------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.resultCount {
+  margin: 0 auto 0 0;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  padding: 2px 6px 2px 10px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--focus);
+}
+
+.chipDim {
+  color: var(--text-muted);
+}
+
+.chipX {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+/* ---------- Data grid ---------- */
+
+.gridWrap {
+  position: relative;
+  overflow: auto;
+  max-height: min(68vh, 760px);
+}
+
+.gridWrap:focus-visible {
+  outline-offset: -2px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14.5px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
+  border-bottom: 1px solid var(--border);
+  padding: 0 11px;
+  height: 40px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 11px 11px;
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+
+/* Wider gutters at the card's edges than between columns. */
+.table th:first-child,
+.table td:first-child {
+  padding-left: 20px;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 20px;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
+}
+
+.table tbody tr.selectedRow td {
+  background: color-mix(in srgb, var(--focus) 9%, var(--surface));
+}
+
+.table tbody tr.selectedRow td:first-child {
+  box-shadow: inset 3px 0 var(--focus);
+}
+
+.checkCol {
+  width: 48px;
+}
+
+.checkCol input {
+  accent-color: var(--focus);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  cursor: pointer;
+  text-transform: inherit;
+}
+
+.sortButton:hover,
+th[aria-sort] .sortButton {
+  color: var(--text);
+}
+
+.sortIcon {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+th[aria-sort] .sortIcon {
+  opacity: 1;
+  color: var(--focus);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.num {
+  text-align: right;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.busy tbody {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.skeleton {
+  display: block;
+  height: 12px;
+  width: 70%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface-2), var(--border), var(--surface-2));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.empty {
+  padding: 40px 16px !important;
+  text-align: center;
+  white-space: normal !important;
+  color: var(--text-muted);
+}
+
+.empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+/* ---------- Pills ---------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+.pillDot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.sevCritical {
+  color: var(--alert);
+  background: var(--alert-soft);
+}
+
+.sevHigh {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.sevMedium {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.sevLow {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+/* Not started: a hollow dot and plain text, quieter than anything under way. */
+.stUnplanned {
+  color: var(--text-muted);
+  padding-left: 0;
+}
+
+.stUnplanned .pillDot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.stPlanned,
+.stInProgress,
+.stOpen {
+  color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 12%, var(--surface));
+}
+
+.stRemediated,
+.stDone {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.wrapText {
+  min-width: 8em;
+  white-space: normal !important;
+}
+
+/* ---------- CVSS meter ---------- */
+
+.cvss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.cvssMeter {
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.cvssMeter > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--text-muted);
+}
+
+.cvss[data-severity='Critical'] .cvssMeter > span {
+  background: var(--alert);
+}
+
+.cvss[data-severity='High'] .cvssMeter > span {
+  background: var(--warn);
+}
+
+/* ---------- Pager ---------- */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.pagerSize {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.pagerSize .select {
+  min-height: 30px;
+  padding: 3px 8px;
+}
+
+.pagerRange {
+  font-variant-numeric: tabular-nums;
+}
+
+.pagerButtons {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* ---------- Action bar ---------- */
+
+.actionBar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 32px -10px rgb(16 24 32 / 28%),
+    0 2px 6px rgb(16 24 32 / 8%);
+}
+
+.selectionSummary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.actionField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionField .input {
+  width: 240px;
+  max-width: 100%;
+}
+
+.actionButtons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blocker {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+@media (max-width: 699px) {
+  .actionField,
+  .actionField .input,
+  .actionButtons,
+  .actionButtons > * {
+    width: 100%;
+  }
+
+  .actionField {
+    flex-wrap: wrap;
+  }
+
+  .blocker {
+    text-align: left;
+  }
+}
+
+/* ---------- Projects ---------- */
+
+.projects {
+  padding: 16px 20px;
+}
+
+.projectsTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.projectList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.projectHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.projectName {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.projectMeta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.projectBar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.projectBar span {
+  display: block;
+  height: 100%;
+  background: var(--focus);
+}
+
+.projectBar .barDone {
+  background: var(--ok);
+}
+
+.projectsEmpty {
+  margin: 0;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .popover {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- Detail links + toolbar filters ---------- */
+
+/* Asset tag and CVE: buttons that open a modal, styled as the cell's own text with a link cue. */
+.cellLink {
+  font: inherit;
+  color: var(--focus);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--focus) 40%, transparent);
+  text-underline-offset: 3px;
+}
+
+.cellLink:hover {
+  text-decoration-color: currentColor;
+}
+
+.filterLabelled {
+  display: inline-flex;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14px;
+  border-color: var(--control-border);
+  border-radius: 8px;
+}
+
+/* ---------- Details modal ---------- */
+
+.modal {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgb(16 24 32 / 40%);
+}
+
+.modal::backdrop {
+  background: rgb(16 24 32 / 45%);
+}
+
+.modalContent {
+  position: relative;
+  padding: 24px 24px 22px;
+  font-size: 16px;
+}
+
+/* Header: centered, a step bigger and bolder than the body (ux/design/modal-header.md). */
+.modalKicker {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--focus);
+}
+
+.modalTitle {
+  margin: 4px 0 18px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.modalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modalClose:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.modalSection {
+  margin: 22px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.modalList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.statusLine {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}

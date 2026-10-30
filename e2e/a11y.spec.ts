@@ -95,6 +95,32 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectNoViolations(page);
     });
 
+    test('remediation page, filtered with a selection', async ({ page }) => {
+      await page.goto(`/riskradar?h=${hospital}`);
+      await expect(page.getByRole('table')).toHaveAttribute('aria-busy', 'false');
+      await page.getByRole('button', { name: 'Filter Severity' }).click();
+      await page.getByRole('dialog', { name: 'Filter Severity' }).getByLabel('Critical').check();
+      await expect(page.getByRole('table')).toHaveAttribute('aria-busy', 'false');
+      await expectNoViolations(page); // with the column filter open
+      await page.keyboard.press('Escape');
+      await page
+        .getByRole('checkbox', { name: /^Select (?!all)/ })
+        .first()
+        .check();
+      // Name it so the create buttons are enabled: a disabled control is exempt from contrast.
+      await page.getByLabel('Project name').fill('Patch critical devices');
+      await expectNoViolations(page);
+    });
+
+    test('remediation page, wide two-column layout and phone width', async ({ page }) => {
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      await page.goto(`/riskradar?h=${hospital}`);
+      await expect(page.getByRole('table')).toHaveAttribute('aria-busy', 'false');
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expectNoViolations(page);
+    });
+
     test('tech handheld', async ({ page }) => {
       await page.goto(`/tech?h=${hospital}`);
       // Desktop width shows the phone frame, which starts on its lock screen: scan both screens.

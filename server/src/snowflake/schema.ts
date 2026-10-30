@@ -28,20 +28,26 @@ export const EXPECTED_COLUMNS: Record<string, readonly string[]> = {
   ASSET_MOVES: ['HOSPITAL_ID', 'EVENT_TS', 'ASSET_ID', 'FROM_ZONE', 'TO_ZONE', 'STATUS'],
 };
 
-const OBJECTS = Object.keys(EXPECTED_COLUMNS);
-const COLUMNS_SQL = `
-SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = CURRENT_SCHEMA() AND TABLE_NAME IN (${OBJECTS.map(() => '?').join(', ')})`;
-
 type Snowflake = Pick<SnowflakeRest, 'query'>;
 
-/** `OBJECT.COLUMN` for every expected column the account lacks (a missing object lists all of its). */
-export async function missingColumns(sf: Snowflake): Promise<string[]> {
-  const { rows } = await sf.query(COLUMNS_SQL, OBJECTS);
+/**
+ * `OBJECT.COLUMN` for every expected column the account lacks (a missing object lists all of its).
+ * `expected` defaults to the event tables; the remediation tables pass their own.
+ */
+export async function missingColumns(
+  sf: Snowflake,
+  expected: Record<string, readonly string[]> = EXPECTED_COLUMNS,
+): Promise<string[]> {
+  const objects = Object.keys(expected);
+  const { rows } = await sf.query(
+    `SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = CURRENT_SCHEMA() AND TABLE_NAME IN (${objects.map(() => '?').join(', ')})`,
+    objects,
+  );
   const present = new Set(rows.map(([table, column]) => `${table}.${column}`));
-  return OBJECTS.flatMap((table) =>
-    EXPECTED_COLUMNS[table]!.map((column) => `${table}.${column}`),
-  ).filter((name) => !present.has(name));
+  return objects
+    .flatMap((table) => expected[table]!.map((column) => `${table}.${column}`))
+    .filter((name) => !present.has(name));
 }
 
 /**

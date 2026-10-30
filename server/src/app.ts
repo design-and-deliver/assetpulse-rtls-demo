@@ -11,6 +11,8 @@ import { SnowflakeSink } from './adapters/snowflake-sink.js';
 import { Connection } from './hub/connection.js';
 import { startHeartbeat } from './hub/heartbeat.js';
 import { WorldRegistry, type RegistryOptions } from './hub/world-registry.js';
+import { REMEDIATION_PREFIX, remediationHandler, remediationStore } from './remediation/index.js';
+import type { RemediationStore } from './remediation/store.js';
 import { loadSnowflakeConfig, type SnowflakeConfig } from './snowflake/config.js';
 import { INSIGHTS_PREFIX, insightsHandler, localOrPublic } from './snowflake/insights.js';
 import { SnowflakeRest } from './snowflake/rest.js';
@@ -28,6 +30,8 @@ export interface AppOptions extends Partial<RegistryOptions> {
    * `null` forces it off. Off means no extra sink and only `/api/insights/status` answers.
    */
   snowflake?: SnowflakeConfig | null;
+  /** Where RiskRadar's (`/riskradar`) remediation data lives. Defaults to Snowflake when the layer is on, else memory. */
+  remediation?: RemediationStore;
 }
 
 export interface App {
@@ -46,6 +50,16 @@ function hospitalIdOf(req: http.IncomingMessage): string | null {
 const TECH_PREFIX = '/tech';
 const TECH_NAME_PATH = '/api/tech-name';
 const DEVICE_KEY_PATTERN = /^[a-z0-9]{8,32}$/;
+/** RiskRadar's old URL (`/remediation`, optional slash); group 1 is the query string to carry over. */
+const OLD_RISKRADAR_PATH = /^\/remediation\/?(\?.*)?$/;
+
+/** 301s the old `/remediation` URL to `/riskradar`, so bookmarks keep working. True if it did. */
+function redirectedToRiskRadar(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  const match = OLD_RISKRADAR_PATH.exec(req.url ?? '');
+  if (!match) return false;
+  res.writeHead(301, { location: `/riskradar${match[1] ?? ''}` }).end();
+  return true;
+}
 
 /** `GET /api/tech-name?h=<hospital>&d=<device key>` → `{ name: "Joe Tech" }`, stable per device. */
 function techNameHandler(registry: WorldRegistry) {
@@ -99,6 +113,7 @@ function staticHandler(webDir: string, techDir: string) {
   const web = spa(webDir);
   const tech = spa(techDir);
   return (req: http.IncomingMessage, res: http.ServerResponse): void => {
+    if (redirectedToRiskRadar(req, res)) return;
     const url = req.url ?? '/';
     const rest = url.slice(TECH_PREFIX.length);
     const isTech =
@@ -147,6 +162,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     serviceNow: options.serviceNow ?? new ServiceNowMock(),
   });
 
+  const remediation = remediationHandler(options.remediation ?? remediationStore(snowflake.rest));
   const techName = techNameHandler(registry);
   const serveStatic = staticHandler(
     options.webDir ?? DEFAULT_WEB_DIR,
@@ -166,6 +182,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
       return;
     }
     if (req.url?.startsWith(INSIGHTS_PREFIX)) return insights(req, res);
+    if (req.url?.startsWith(REMEDIATION_PREFIX)) return remediation(req, res);
     if (req.method === 'GET' && req.url?.startsWith(`${TECH_NAME_PATH}?`))
       return techName(req, res);
     serveStatic(req, res);

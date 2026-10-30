@@ -67,3 +67,22 @@ describe('static cache headers', () => {
     expect(await fresh.text()).toBe('cut two, longer');
   });
 });
+
+describe('old remediation URL', () => {
+  it('redirects /remediation to /riskradar, keeping the query', async () => {
+    for (const [from, to] of [
+      ['/remediation', '/riskradar'],
+      ['/remediation/', '/riskradar'],
+      ['/remediation?h=abcd1234&severity=High', '/riskradar?h=abcd1234&severity=High'],
+    ]) {
+      const res = await fetch(`http://127.0.0.1:${app.port}${from}`, { redirect: 'manual' });
+      expect(res.status, from).toBe(301);
+      expect(res.headers.get('location'), from).toBe(to);
+    }
+  });
+
+  it('leaves look-alike paths alone', async () => {
+    const res = await fetch(`http://127.0.0.1:${app.port}/remediations`, { redirect: 'manual' });
+    expect(res.status).not.toBe(301);
+  });
+});

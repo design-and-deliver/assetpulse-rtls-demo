@@ -10,6 +10,7 @@
     "e2e/**/*.ts",
     "vitest.config.ts",
     "server/vitest.config.ts",
-    "web/vite.config.ts"
+    "web/vite.config.ts",
+    "web/vitest.config.ts"
   ]
 }

@@ -159,6 +159,22 @@ After any change to `setup.sql` or `assetpulse.yaml`, re-run it in Snowsight as 
 re-upload the YAML: nothing applies them automatically, and the boot check hides Insights until
 you do.
 
+## RiskRadar: vulnerable-device remediation (`/riskradar`)
+
+RiskRadar (formerly `/remediation`, which redirects here) is a separate page for a customer's security team ([ADR 0007](docs/adr/0007-remediation-workspace.md)):
+every vulnerable device across the customer's hospitals in one data grid, sliced by severity,
+status, hospital, device class, and manufacturer, with facet counts, search, sorting, and paging
+done on the server. Pick devices, or take everything matching the current filters, to create a
+remediation project, then move it from Open to In progress to Done. Device statuses follow.
+
+- The customer is the sandbox `?h=`. Every query is scoped to it, and another customer's device
+  id is a 404.
+- The fleet is generated demo data (fictional vendors and CVE ids), the same for a given `?h=`
+  on every server.
+- With the Snowflake layer on, data lives in the `REMEDIATION_*` tables from `setup.sql`, and a
+  customer's fleet is inserted on its first visit. Until `setup.sql` has been re-run, the page
+  uses the in-memory store and the server logs why.
+
 ## Repo map
 
 | Path                | What it is                                                           |

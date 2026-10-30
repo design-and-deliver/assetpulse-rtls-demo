@@ -82,11 +82,60 @@ SELECT HOSPITAL_ID, EVENT_TS,
        PAYLOAD:status::STRING  AS STATUS
 FROM EVENTS WHERE EVENT_TYPE = 'asset_changed';
 
+-- Remediation (/remediation): each customer's vulnerable devices, and the projects that fix them.
+-- CUSTOMER_ID is the sandbox id (?h=) and leads every key: the app filters on it in every query.
+-- A customer's fleet is generated and inserted by the app on its first visit.
+CREATE TABLE IF NOT EXISTS REMEDIATION_DEVICES (
+  CUSTOMER_ID  STRING       NOT NULL,
+  DEVICE_ID    STRING       NOT NULL,
+  ASSET_TAG    STRING       NOT NULL,
+  MODEL        STRING       NOT NULL,
+  DEVICE_CLASS STRING       NOT NULL,
+  MANUFACTURER STRING       NOT NULL,
+  HOSPITAL     STRING       NOT NULL,
+  CVE          STRING       NOT NULL,
+  CVSS         NUMBER(3, 1) NOT NULL,
+  SEVERITY     STRING       NOT NULL,  -- Critical | High | Medium | Low
+  PRIMARY KEY (CUSTOMER_ID, DEVICE_ID)
+);
+
+CREATE TABLE IF NOT EXISTS REMEDIATION_PROJECTS (
+  CUSTOMER_ID STRING       NOT NULL,
+  PROJECT_ID  STRING       NOT NULL,
+  NAME        STRING       NOT NULL,
+  STATUS      STRING       NOT NULL,  -- Open | In progress | Done
+  CREATED_AT  TIMESTAMP_TZ NOT NULL,
+  PRIMARY KEY (CUSTOMER_ID, PROJECT_ID)
+);
+
+CREATE TABLE IF NOT EXISTS REMEDIATION_PROJECT_DEVICES (
+  CUSTOMER_ID STRING NOT NULL,
+  PROJECT_ID  STRING NOT NULL,
+  DEVICE_ID   STRING NOT NULL
+);
+
+-- Each device with its remediation status: Remediated once in a Done project, Planned while in
+-- any other, else Unplanned. Inner-joining projects means links whose project row was never
+-- written (a failed create) count for nothing.
+CREATE OR REPLACE VIEW REMEDIATION_FLEET AS
+WITH project_status AS (
+  SELECT pd.CUSTOMER_ID, pd.DEVICE_ID, MAX(IFF(p.STATUS = 'Done', 2, 1)) AS STAGE
+  FROM REMEDIATION_PROJECT_DEVICES pd
+  JOIN REMEDIATION_PROJECTS p
+    ON p.CUSTOMER_ID = pd.CUSTOMER_ID AND p.PROJECT_ID = pd.PROJECT_ID
+  GROUP BY 1, 2
+)
+SELECT d.CUSTOMER_ID, d.DEVICE_ID, d.ASSET_TAG, d.MODEL, d.DEVICE_CLASS, d.MANUFACTURER,
+       d.HOSPITAL, d.CVE, d.CVSS, d.SEVERITY,
+       DECODE(s.STAGE, 2, 'Remediated', 1, 'Planned', 'Unplanned') AS STATUS
+FROM REMEDIATION_DEVICES d
+LEFT JOIN project_status s ON s.CUSTOMER_ID = d.CUSTOMER_ID AND s.DEVICE_ID = d.DEVICE_ID;
+
 -- Where the Cortex Analyst semantic model lives. Upload docs/snowflake/assetpulse.yaml here
 -- (Snowsight: Data > ASSETPULSE > APP > Stages > MODELS > + Files).
 CREATE STAGE IF NOT EXISTS MODELS DIRECTORY = (ENABLE = TRUE);
 
--- The app's role: insert events, read the views, use Cortex. Nothing else.
+-- The app's role: insert events, read the views, use Cortex, and keep remediation data. Nothing else.
 CREATE ROLE IF NOT EXISTS ASSETPULSE_APP;
 GRANT USAGE ON WAREHOUSE ASSETPULSE_WH TO ROLE ASSETPULSE_APP;
 GRANT USAGE ON DATABASE ASSETPULSE TO ROLE ASSETPULSE_APP;
@@ -96,6 +145,10 @@ GRANT SELECT ON VIEW WORK_ORDERS TO ROLE ASSETPULSE_APP;
 GRANT SELECT ON VIEW PAR_ALERTS TO ROLE ASSETPULSE_APP;
 GRANT SELECT ON VIEW ASSET_MOVES TO ROLE ASSETPULSE_APP;
 GRANT READ ON STAGE MODELS TO ROLE ASSETPULSE_APP;
+GRANT INSERT, SELECT ON TABLE REMEDIATION_DEVICES TO ROLE ASSETPULSE_APP;
+GRANT INSERT, SELECT, UPDATE ON TABLE REMEDIATION_PROJECTS TO ROLE ASSETPULSE_APP;
+GRANT INSERT, SELECT ON TABLE REMEDIATION_PROJECT_DEVICES TO ROLE ASSETPULSE_APP;
+GRANT SELECT ON VIEW REMEDIATION_FLEET TO ROLE ASSETPULSE_APP;
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE ASSETPULSE_APP;
 
 -- A service user that signs in with a key pair only (no password). Paste the body of
